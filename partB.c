@@ -102,11 +102,27 @@ void send_file(char *ip, char *port, char *filename, int domain, int type, int p
         printf("ERROR opening socket\n");
         exit(1);
     }
-    struct sockaddr_in addr;
-    memset((char *)&addr, 0, sizeof(addr));
-    addr.sin_family = domain;
-    addr.sin_port = htons(atoi(port));
-    addr.sin_addr.s_addr = inet_addr(ip);
+    struct sockaddr_storage addr;
+    
+    if(domain == AF_INET6){ // ipv6
+        int optval = 1;
+        setsockopt(sockfd, IPPROTO_IPV6, IPV6_V6ONLY, &optval, sizeof(optval));
+        struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)&addr;
+        memset((char *)addr6, 0, sizeof(*addr6));
+        addr6->sin6_family = domain;
+        addr6->sin6_port = htons(atoi(port));
+        inet_pton(AF_INET6, ip, &addr6->sin6_addr);
+
+        addr = *(struct sockaddr_storage *)addr6;
+    }else if(domain == AF_INET){ // ipv4
+        struct sockaddr_in *addr4 = (struct sockaddr_in *)&addr;
+        memset((char *)addr4, 0, sizeof(*addr4));
+        addr4->sin_family = domain;
+        addr4->sin_port = htons(atoi(port));
+        inet_pton(AF_INET, ip, &addr4->sin_addr);
+
+        addr = *(struct sockaddr_storage *)addr4;
+    }
     if (type == SOCK_STREAM)
     {
         if (connect(sockfd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
@@ -162,15 +178,34 @@ void recive_file(char *port, int domain, int type, int protocol)
         printf("ERROR opening socket\n");
         exit(1);
     }
-
-    // Bind Socket
-    struct sockaddr_in serveraddr, clientaddr;
-    socklen_t addr_size = sizeof(struct sockaddr_in);
     
-    memset((char *)&serveraddr, 0, sizeof(serveraddr));
-    serveraddr.sin_family = domain;
-    serveraddr.sin_port = htons(atoi(port));
-    serveraddr.sin_addr.s_addr = INADDR_ANY;
+    struct sockaddr_storage serveraddr, clientaddr;
+    // Bind Socket
+    
+
+    socklen_t addr_size;
+
+    if(domain == AF_INET6){ // ipv6
+        int optval = 1;
+        setsockopt(sockfd, IPPROTO_IPV6, IPV6_V6ONLY, &optval, sizeof(optval));
+        struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)&serveraddr;
+        memset((char *)addr6, 0, sizeof(*addr6));
+        addr6->sin6_family = domain;
+        addr6->sin6_port = htons(atoi(port));
+        addr6->sin6_addr = in6addr_any;
+
+        addr_size = sizeof(*addr6);
+        serveraddr = *(struct sockaddr_storage *)addr6;
+    }else if(domain == AF_INET){ // ipv4
+        struct sockaddr_in *addr4 = (struct sockaddr_in *)&serveraddr;
+        memset((char *)addr4, 0, sizeof(*addr4));
+        addr4->sin_family = domain;
+        addr4->sin_port = htons(atoi(port));
+        addr4->sin_addr.s_addr = INADDR_ANY;
+
+        addr_size = sizeof(*addr4);
+        serveraddr = *(struct sockaddr_storage *)addr4;
+    }
     if (bind(sockfd, (struct sockaddr *)&serveraddr, sizeof(serveraddr)) < 0)
     {
         printf("ERROR on binding\n");
@@ -197,7 +232,7 @@ void recive_file(char *port, int domain, int type, int protocol)
         }
         fds[1].fd = newsockfd;
         fds[1].events = POLLIN;
-        printf("Accepted connection from %s:%d\n", inet_ntoa(serveraddr.sin_addr), ntohs(serveraddr.sin_port));
+        printf("Accepted connection \n");
     }
 
     // Recive File

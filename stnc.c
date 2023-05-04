@@ -186,6 +186,10 @@ void run_client(char *ip, char *port)
                 printf("UDP IPv4\n");
                 bytesSent = send(sockfd, "ipv4 udp", 8, 0); // send test command
             }
+            else if(tcp && ipv6){
+                printf("TCP IPv6\n");
+                bytesSent = send(sockfd, "ipv6 tcp", 8, 0); // send test command
+            }
             if (bytesSent < 0)
             {
                 printf("ERROR send() failed\n");
@@ -202,6 +206,8 @@ void run_client(char *ip, char *port)
             else if (udp && ipv4)
             {
                 send_file(ip, new_port, filename, AF_INET, SOCK_DGRAM, 0);
+            }else if(tcp && ipv6){
+                send_file(ip, new_port, filename, AF_INET6, SOCK_STREAM, IPPROTO_TCP);
             }
             int recieved = recv(sockfd, messageBuffer, BUFFER_SIZE_MESSAGE - 1, 0); // recieve checksum
             if (recieved < 0)
@@ -388,6 +394,12 @@ void run_server(char *port)
                 }else if (!strcmp(messageBuffer, "ipv4 udp")){
                     printf("UDP IPv4\n");
                     recive_file(new_port, AF_INET, SOCK_DGRAM, 0);
+                }else if(!strcmp(messageBuffer, "ipv6 tcp")){
+                    printf("TCP IPv6\n");
+                    recive_file(new_port, AF_INET6, SOCK_STREAM, IPPROTO_TCP);
+                }else if(!strcmp(messageBuffer, "ipv6 udp")){
+                    printf("UDP IPv6\n");
+                    recive_file(new_port, AF_INET6, SOCK_DGRAM, 0);
                 }
                 u_int32_t checksum = generate_checksum("recived.txt");
                 char checksum_str[10];
