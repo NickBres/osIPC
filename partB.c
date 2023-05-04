@@ -106,12 +106,7 @@ void send_file(char *ip, char *port, char *filename, int domain, int type, int p
     memset((char *)&addr, 0, sizeof(addr));
     addr.sin_family = domain;
     addr.sin_port = htons(atoi(port));
-    int rval = inet_pton(domain, ip, &addr.sin_addr); // Convert IPv4 from text to binary form
-    if (rval <= 0)
-    {
-        printf("ERROR inet_pton() failed\n");
-        exit(1);
-    }
+    addr.sin_addr.s_addr = inet_addr(ip);
     if (type == SOCK_STREAM)
     {
         if (connect(sockfd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
@@ -141,6 +136,7 @@ void send_file(char *ip, char *port, char *filename, int domain, int type, int p
         }
         else if (type == SOCK_DGRAM)
         {
+            sleep(0.01); // delay to make sure packets are sent in order
             bytes_sent = sendto(sockfd, buffer, bytes_read, 0, (struct sockaddr *)&addr, sizeof(addr));
         }
         if (bytes_sent < 0)
@@ -149,7 +145,6 @@ void send_file(char *ip, char *port, char *filename, int domain, int type, int p
             exit(1);
         }
         sent_bytes += bytes_sent;
-        printf("Sent %d/%d bytes\n", sent_bytes, filesize);
         bzero(buffer, BUFFER_SIZE);
     }
     fclose(fp);
@@ -182,10 +177,15 @@ void recive_file(char *port, int domain, int type, int protocol)
         exit(1);
     }
 
+    struct pollfd fds[2];
+        fds[0].fd = sockfd;
+        fds[0].events = POLLIN;
+
     
     int newsockfd;
     if (type == SOCK_STREAM)
     {
+        
         listen(sockfd, 1);
         printf("Listening on port %s\n", port);
 
@@ -195,6 +195,8 @@ void recive_file(char *port, int domain, int type, int protocol)
             printf("ERROR on accept\n");
             exit(1);
         }
+        fds[1].fd = newsockfd;
+        fds[1].events = POLLIN;
         printf("Accepted connection from %s:%d\n", inet_ntoa(serveraddr.sin_addr), ntohs(serveraddr.sin_port));
     }
 
@@ -203,6 +205,13 @@ void recive_file(char *port, int domain, int type, int protocol)
     FILE *fp = fopen("recived.txt", "wb");
     while (1)
     {
+        
+        int poll_status = poll(fds, 2, 2000); // 2 seconds timeout
+        if (poll_status == 0)
+        {
+            printf("Timeout\n");
+            break;
+        }
         int recived;
         if (type == SOCK_STREAM)
         {
