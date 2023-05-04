@@ -15,8 +15,9 @@
 #include <poll.h>
 #include <arpa/inet.h>
 
-#define BUFFER_SIZE 1024
+#include "partB.h"
 
+#define BUFFER_SIZE_MESSAGE 1024 // 1MB
 
 void run_client(char *ip, char *port);
 void run_server(char *port);
