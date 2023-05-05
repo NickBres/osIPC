@@ -280,6 +280,169 @@ void recive_file(char *port, int domain, int type, int protocol)
     close(sockfd);
 }
 
+void recive_file_uds(char *sock_path, int type)
+{
+    printf("Reciving file on Unix domain socket '%s'\n", sock_path);
+
+    // Create Socket
+    int sockfd = socket(AF_UNIX, type, 0);
+    if (sockfd < 0)
+    {
+        printf("ERROR opening socket\n");
+        exit(1);
+    }
+
+    struct sockaddr_un serveraddr;
+    memset(&serveraddr, 0, sizeof(serveraddr));
+    serveraddr.sun_family = AF_UNIX;
+    strncpy(serveraddr.sun_path, sock_path, sizeof(serveraddr.sun_path) - 1);
+
+    // Bind Socket
+    if (bind(sockfd, (struct sockaddr *)&serveraddr, sizeof(serveraddr)) < 0)
+    {
+        printf("ERROR on binding\n");
+        exit(1);
+    }
+
+    struct pollfd fds[2];
+    fds[0].fd = sockfd;
+    fds[0].events = POLLIN;
+
+    int newsockfd;
+    if (type == SOCK_STREAM)
+    {
+        listen(sockfd, 1);
+        printf("Listening on Unix domain socket '%s'\n", sock_path);
+
+        newsockfd = accept(sockfd, NULL, NULL);
+        if (newsockfd < 0)
+        {
+            printf("ERROR on accept\n");
+            exit(1);
+        }
+        fds[1].fd = newsockfd;
+        fds[1].events = POLLIN;
+        printf("Accepted connection \n");
+    }
+
+    // Recive File
+    char buffer[BUFFER_SIZE] = {0};
+    FILE *fp = fopen("recived.txt", "wb");
+    while (1)
+    {
+        int poll_status = poll(fds, 2, 2000); // 2 seconds timeout
+        if (poll_status == 0)
+        {
+            printf("Timeout\n");
+            break;
+        }
+
+        int recived;
+        if (type == SOCK_STREAM)
+        {
+            recived = recv(newsockfd, buffer, BUFFER_SIZE, 0);
+        }
+        else if (type == SOCK_DGRAM)
+        {
+            recived = recvfrom(sockfd, buffer, BUFFER_SIZE, 0, NULL, NULL);
+        }
+
+        if (recived < 0)
+        {
+            printf("ERROR reciving file\n");
+            exit(1);
+        }
+        if (recived == 0)
+        {
+            break;
+        }
+
+        // Write to file
+        if (fwrite(buffer, recived, 1, fp) < 0)
+        {
+            printf("ERROR writing file\n");
+            exit(1);
+        }
+        bzero(buffer, BUFFER_SIZE);
+    }
+
+    fclose(fp);
+    if (type == SOCK_STREAM)
+        close(newsockfd);
+    close(sockfd);
+    unlink(sock_path);
+
+    printf("File received successfully\n");
+}
+
+
+void send_file_uds(char *sock_path, char *filename, int type)
+{
+    printf("Sending file '%s' to Unix domain socket '%s'\n", filename, sock_path);
+
+    // Open File
+    int filesize = 0;
+    FILE *fp = fopen(filename, "rb");
+    if (!fp)
+    {
+        printf("Error opening file '%s'\n", filename);
+        return;
+    }
+    fseek(fp, 0L, SEEK_END); // seek to end of file
+    filesize = ftell(fp);    // get current file pointer
+    fseek(fp, 0L, SEEK_SET); // seek back to beginning of file
+
+    // Create Socket
+    int sockfd = socket(AF_UNIX, type, 0);
+    if (sockfd < 0)
+    {
+        printf("ERROR opening socket\n");
+        exit(1);
+    }
+
+    struct sockaddr_un serveraddr;
+    memset(&serveraddr, 0, sizeof(serveraddr));
+    serveraddr.sun_family = AF_UNIX;
+    strncpy(serveraddr.sun_path, sock_path, sizeof(serveraddr.sun_path) - 1);
+
+    // Connect Socket
+    if (connect(sockfd, (struct sockaddr *)&serveraddr, sizeof(serveraddr)) < 0)
+    {
+        printf("ERROR connecting\n");
+        exit(1);
+    }
+    printf("Connected to Unix domain socket '%s'\n", sock_path);
+
+    // Send File
+    char buffer[BUFFER_SIZE] = {0};
+    int sent_bytes = 0;
+    int bytes_read = 0;
+    while (sent_bytes < filesize)
+    {
+        bytes_read = min(BUFFER_SIZE, filesize - sent_bytes); // Read at most BUFFER_SIZE bytes
+        if (fread(buffer, 1, bytes_read, fp) < 0)
+        {
+            printf("ERROR reading file\n");
+            exit(1);
+        }
+        int bytes_sent = send(sockfd, buffer, bytes_read, 0);
+        if (bytes_sent < 0)
+        {
+            printf("ERROR send() failed (FILE)\n");
+            exit(1);
+        }
+        sent_bytes += bytes_sent;
+        bzero(buffer, BUFFER_SIZE);
+    }
+
+    fclose(fp);
+    close(sockfd);
+
+    printf("File '%s' sent successfully\n", filename);
+}
+
+
+
 int min(int a, int b)
 {
     if (a < b)

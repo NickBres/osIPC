@@ -13,6 +13,8 @@
 #include <sys/time.h>
 #include <poll.h>
 #include <arpa/inet.h>
+#include <sys/un.h>
+
 
 
 
@@ -24,6 +26,8 @@ int delete_file(char* filename);
 void print_time_diff(struct timeval* start, struct timeval* end);
 void send_file(char *ip, char* port, char* filename, int domain, int type, int protocol);
 void recive_file(char* port,int domain, int type, int protocol);
+void send_file_uds(char* filename,char* sockpath,int type);
+void recive_file_uds(char* sockpath,int type);
 int min(int a, int b);
 
 #endif

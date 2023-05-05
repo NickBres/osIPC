@@ -189,6 +189,12 @@ void run_client(char *ip, char *port)
             else if(tcp && ipv6){
                 printf("TCP IPv6\n");
                 bytesSent = send(sockfd, "ipv6 tcp", 8, 0); // send test command
+            }else if(uds && dgram){
+                printf("UDS DGRAM\n");
+                bytesSent = send(sockfd, "uds dgram", 9, 0); // send test command
+            }else if(uds && stream){
+                printf("UDS STREAM\n");
+                bytesSent = send(sockfd, "uds stream", 10, 0); // send test command
             }
             if (bytesSent < 0)
             {
@@ -208,7 +214,13 @@ void run_client(char *ip, char *port)
                 send_file(ip, new_port, filename, AF_INET, SOCK_DGRAM, 0);
             }else if(tcp && ipv6){
                 send_file(ip, new_port, filename, AF_INET6, SOCK_STREAM, IPPROTO_TCP);
+            }else if (uds && dgram)
+            {
+                send_file_uds(new_port, filename, SOCK_DGRAM);
+            }else if(uds && stream){
+                send_file_uds(new_port, filename, SOCK_STREAM);
             }
+            
             int recieved = recv(sockfd, messageBuffer, BUFFER_SIZE_MESSAGE - 1, 0); // recieve checksum
             if (recieved < 0)
             {
@@ -378,7 +390,7 @@ void run_server(char *port)
             {
                 printf("Test mode\n");
                 bzero(messageBuffer, BUFFER_SIZE_MESSAGE);
-                int bytesRecv = recv(clientSock, messageBuffer, 8, 0);
+                int bytesRecv = recv(clientSock, messageBuffer, 10, 0);
                 if (bytesRecv < 0)
                 {
                     printf("ERROR recv() failed\n");
@@ -400,6 +412,12 @@ void run_server(char *port)
                 }else if(!strcmp(messageBuffer, "ipv6 udp")){
                     printf("UDP IPv6\n");
                     recive_file(new_port, AF_INET6, SOCK_DGRAM, 0);
+                }else if(!strcmp(messageBuffer,"uds dgram")){
+                    printf("UDS DGRAM\n");
+                    recive_file_uds(new_port,SOCK_DGRAM);
+                }else if(!strcmp(messageBuffer,"uds stream")){
+                    printf("UDS STREAM\n");
+                    recive_file_uds(new_port,SOCK_STREAM);
                 }
                 u_int32_t checksum = generate_checksum("recived.txt");
                 char checksum_str[10];
