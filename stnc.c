@@ -8,7 +8,7 @@ int udp = 0;
 int uds = 0;
 int dgram = 0;
 int stream = 0;
-int mmap = 0;
+int isMmap = 0;
 int pipef = 0;
 char *filename = NULL;
 
@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
             }
             else if (!strcmp(argv[5], "mmap"))
             {
-                mmap = 1;
+                isMmap = 1;
                 if (argv[6] == NULL)
                 {
                     printf("No filename!\n");
@@ -162,7 +162,9 @@ void run_client(char *ip, char *port)
         if (test)
         { // test mode
             // generate file
-            char *filename = "test.txt";
+            if(filename == NULL){
+                filename = "test.txt";
+            }
             generate_file(filename, 100 * 1024 * 1024);
             // create new port for file transfer port+1
             char new_port[10];
@@ -195,6 +197,12 @@ void run_client(char *ip, char *port)
             }else if(uds && stream){
                 printf("UDS STREAM\n");
                 bytesSent = send(sockfd, "uds stream", 10, 0); // send test command
+            }else if (isMmap){
+                printf("MMAP\n");
+                bytesSent = send(sockfd, "mmap", 5, 0); // send test command
+            }else if(pipe){
+                printf("PIPE\n");
+                bytesSent = send(sockfd, "pipe", 5, 0); // send test command
             }
             if (bytesSent < 0)
             {
@@ -219,6 +227,14 @@ void run_client(char *ip, char *port)
                 send_file_uds(new_port, filename, SOCK_DGRAM);
             }else if(uds && stream){
                 send_file_uds(new_port, filename, SOCK_STREAM);
+            }else if (mmap)
+            {
+                bytesSent = send(sockfd, filename, strlen(filename), 0); // send filename
+                if (bytesSent < 0)
+                {
+                    printf("ERROR send() failed\n");
+                    exit(1);
+                }
             }
             
             int recieved = recv(sockfd, messageBuffer, BUFFER_SIZE_MESSAGE - 1, 0); // recieve checksum
@@ -418,6 +434,15 @@ void run_server(char *port)
                 }else if(!strcmp(messageBuffer,"uds stream")){
                     printf("UDS STREAM\n");
                     recive_file_uds(new_port,SOCK_STREAM);
+                }else if(!strcmp(messageBuffer,"mmap")){
+                    printf("Mmap\n");
+                    bytesRecv = recv(clientSock, messageBuffer, BUFFER_SIZE_MESSAGE - 1, 0); // recive file name
+                    if (bytesRecv < 0)
+                    {
+                        printf("ERROR recv() failed\n");
+                        exit(1);
+                    }
+                    copy_file_mmap(messageBuffer, "recived.txt");
                 }
                 u_int32_t checksum = generate_checksum("recived.txt");
                 char checksum_str[10];

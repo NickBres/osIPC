@@ -14,6 +14,10 @@
 #include <poll.h>
 #include <arpa/inet.h>
 #include <sys/un.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+
 
 
 
@@ -28,6 +32,7 @@ void send_file(char *ip, char* port, char* filename, int domain, int type, int p
 void recive_file(char* port,int domain, int type, int protocol);
 void send_file_uds(char* filename,char* sockpath,int type);
 void recive_file_uds(char* sockpath,int type);
+void copy_file_mmap(char* filenameFrom, char* filenameTo);
 int min(int a, int b);
 
 #endif

@@ -441,6 +441,53 @@ void send_file_uds(char *sock_path, char *filename, int type)
     printf("File '%s' sent successfully\n", filename);
 }
 
+void copy_file_mmap(char* filenameFrom, char* filenameTo){
+    // Open file
+    int fdFrom = open(filenameFrom, O_RDONLY, S_IRUSR | S_IWUSR);
+    if (fdFrom < 0)
+    {
+        printf("ERROR opening file\n");
+        exit(1);
+    }
+    struct stat statFrom; // Get file size
+    if (fstat(fdFrom, &statFrom) < 0)
+    {
+        printf("ERROR fstat\n");
+        exit(1);
+    }
+
+    // Create file
+    int fdTo = open(filenameTo, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+    if (fdTo < 0)
+    {
+        printf("ERROR opening file\n");
+        exit(1);
+    }
+    if (ftruncate(fdTo, statFrom.st_size) < 0) // Set size of file
+    {
+        printf("ERROR ftruncate\n");
+        exit(1);
+    }
+
+    // Map files to memory
+    char *mapFrom = mmap(NULL, statFrom.st_size, PROT_READ, MAP_SHARED, fdFrom, 0);
+    if (mapFrom == MAP_FAILED)
+    {
+        printf("ERROR mmap\n");
+        exit(1);
+    }
+    char *mapTo = mmap(NULL, statFrom.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, fdTo, 0);
+    if (mapTo == MAP_FAILED)
+    {
+        printf("ERROR mmap\n");
+        exit(1);
+    }
+
+    // Copy file
+    memcpy(mapTo, mapFrom, statFrom.st_size);
+
+}
+
 
 
 int min(int a, int b)
