@@ -1,5 +1,7 @@
 #include "stnc.h"
 
+int client = 0;
+int server = 0;
 int test = 0;
 int ipv4 = 0;
 int ipv6 = 0;
@@ -11,112 +13,125 @@ int stream = 0;
 int isMmap = 0;
 int isPipe = 0;
 int deleteFile = 0;
+int quite = 0;
 char *filename = NULL;
+char *ip = NULL;
+char *port = NULL;
+char *type = NULL;
+char *param = NULL;
 
 int main(int argc, char *argv[])
 {
     if (argc < 3)
     {
-        printf("-----Usage-----\nPartA:\n   Client: ./stnc -[c] <ip> <port>\n   Server: ./stnc -[s] <port>\nPartB:\n   Client: ./stnc -[c] <ip> <port> -[p] <type> <param>\n");
+        printf("-----Usage-----\nPartA:\n   Client: ./stnc -[c] <ip> <port>\n   Server: ./stnc -[s] <port>\nPartB:\n   Client: ./stnc -[c] <ip> <port> -[p] <type> <param> \n");
         return 1;
     }
-    if (!strcmp(argv[1], "-c"))
+    for (int i = 1; i < argc; i++)
     {
-        if (argc > 4 && !strcmp(argv[4], "-p"))
+        if (strcmp(argv[i], "-c") == 0)
+        {
+            client = 1;
+            ip = argv[i + 1];
+            port = argv[i + 2];
+        }
+        else if (strcmp(argv[i], "-s") == 0)
+        {
+            server = 1;
+            port = argv[i + 1];
+        }
+        else if (strcmp(argv[i], "-p") == 0)
         {
             test = 1;
-            if (argc > 5 && !strcmp(argv[5], "ipv4"))
-            {
-                ipv4 = 1;
-                if (argc == 7 && !strcmp(argv[6], "tcp"))
-                {
-                    tcp = 1;
-                }
-                else if (argc == 7 && !strcmp(argv[6], "udp"))
-                {
-                    udp = 1;
-                }
-                else
-                {
-                    printf("Wrong param! (tcp, udp)\n");
-                    return 1;
-                }
-            }
-            else if (argc > 5 && !strcmp(argv[5], "ipv6"))
-            {
-                ipv6 = 1;
-                if (argc == 7 && !strcmp(argv[6], "tcp"))
-                {
-                    tcp = 1;
-                }
-                else if (argc == 7 && !strcmp(argv[6], "udp"))
-                {
-                    udp = 1;
-                }
-                else
-                {
-                    printf("Wrong param! (tcp, udp)\n");
-                    return 1;
-                }
-            }
-            else if (argc > 5 && !strcmp(argv[5], "uds"))
-            {
-                uds = 1;
-                if (argc == 7 && !strcmp(argv[6], "dgram"))
-                {
-                    dgram = 1;
-                }
-                else if (argc == 7 && !strcmp(argv[6], "stream"))
-                {
-                    stream = 1;
-                }
-                else
-                {
-                    printf("Wrong param! (dgram, stream)\n");
-                    return 1;
-                }
-            }
-            else if (argc > 5 && !strcmp(argv[5], "mmap"))
-            {
-                isMmap = 1;
-                if (argc == 7 && argv[6] == NULL)
-                {
-                    filename = argv[6];
-                }
-            }
-            else if (argc > 5 && !strcmp(argv[5], "pipe"))
-            {
-                isPipe = 1;
-                if (argc == 7 && argv[6] != NULL)
-                {
-                    filename = argv[6];
-                }
-            }
-            else
-            {
-                printf("Wrong type! (ipv4, ipv6, uds, mmap, pipe)\n");
-                return 1;
-            }
+            type = argv[i + 1];
+            param = argv[i + 2];
         }
-        run_client(argv[2], argv[3]);
-    }
-    else if (!strcmp(argv[1], "-s"))
-    {
-        run_server(argv[2]);
+        else if (strcmp(argv[i], "-q") == 0)
+        {
+            quite = 1;
+        }
     }
 
+    if (test)
+    {
+        if (!type || !param)
+        {
+            printf("No type or param after -p\n");
+            return 1;
+        }
+        if (strcmp(type, "ipv4") == 0)
+        {
+            ipv4 = 1;
+        }
+        else if (strcmp(type, "ipv6") == 0)
+        {
+            ipv6 = 1;
+        }
+        else if (strcmp(type, "uds") == 0)
+        {
+            uds = 1;
+        }
+        else if (strcmp(type, "mmap") == 0)
+        {
+            isMmap = 1;
+        }
+        else if (strcmp(type, "pipe") == 0)
+        {
+            isPipe = 1;
+        }
+        else
+        {
+            printf("wrong type after -p (ipv4, ipv6, uds, mmap, pipe)\n)");
+        }
+
+        if (strcmp(param, "tcp") == 0)
+        {
+            tcp = 1;
+        }
+        else if (strcmp(param, "udp") == 0)
+        {
+            udp = 1;
+        }
+        else if (strcmp(param, "dgram") == 0)
+        {
+            dgram = 1;
+        }
+        else if (strcmp(param, "stream") == 0)
+        {
+            stream = 1;
+        }
+        else if (strcmp(param, "default") == 0)
+        {
+            filename = NULL;
+        }
+        else
+        {
+            filename = param;
+        }
+    }
+
+    if (client)
+    {
+        run_client(ip, port);
+    }
+    else if (server)
+    {
+        run_server(port);
+    }
     else
     {
-        printf("Usage:\n Client: stnc -[c] <ip> <port>\n Server: stnc -[s] <port>\n");
-        return 1;
+        printf("-----Usage-----\nPartA:\n   Client: ./stnc -[c] <ip> <port>\n   Server: ./stnc -[s] <port>\nPartB:\n   Client: ./stnc -[c] <ip> <port> -[p] <type> <param> \n");
     }
 }
 
 void run_client(char *ip, char *port)
 {
-    printf("--------------------\n");
-    printf("------ Client ------\n");
-    printf("--------------------\n");
+    if (!quite)
+    {
+        printf("--------------------\n");
+        printf("------ Client ------\n");
+        printf("--------------------\n");
+    }
 
     // Create socket
     int sockfd;
@@ -144,7 +159,8 @@ void run_client(char *ip, char *port)
         exit(1);
     }
 
-    printf("Connected to %s:%s\n", ip, port);
+    if (!quite)
+        printf("Connected to %s:%s\n", ip, port);
 
     // Create pollfd to monitor stdin and socket
     struct pollfd fds[2] = {
@@ -158,12 +174,11 @@ void run_client(char *ip, char *port)
     {
         if (test)
         { // test mode
-
             // generate file if not exist
             if (filename == NULL)
             {
                 filename = "test.txt";
-                generate_file(filename, 100 * 1024 * 1024);
+                generate_file(filename, 100 * 1024 * 1024, quite);
                 deleteFile = 1; // flag to delete file after transfer
             }
             // create new port for file transfer port+1
@@ -180,42 +195,50 @@ void run_client(char *ip, char *port)
             sleep(1);
             if (tcp && ipv4)
             {
-                printf("TCP IPv4\n");
+                if (!quite)
+                    printf("TCP IPv4\n");
                 bytesSent = send(sockfd, "ipv4 tcp", 8, 0); // send test command
             }
             else if (udp && ipv4)
             {
-                printf("UDP IPv4\n");
+                if (!quite)
+                    printf("UDP IPv4\n");
                 bytesSent = send(sockfd, "ipv4 udp", 8, 0); // send test command
             }
             else if (tcp && ipv6)
             {
-                printf("TCP IPv6\n");
+                if (!quite)
+                    printf("TCP IPv6\n");
                 bytesSent = send(sockfd, "ipv6 tcp", 8, 0); // send test command
             }
             else if (udp && ipv6)
             {
-                printf("UDP IPv6\n");
+                if (!quite)
+                    printf("UDP IPv6\n");
                 bytesSent = send(sockfd, "ipv6 udp", 8, 0); // send test command
             }
             else if (uds && dgram)
             {
-                printf("UDS DGRAM\n");
+                if (!quite)
+                    printf("UDS DGRAM\n");
                 bytesSent = send(sockfd, "uds dgram", 9, 0); // send test command
             }
             else if (uds && stream)
             {
-                printf("UDS STREAM\n");
+                if (!quite)
+                    printf("UDS STREAM\n");
                 bytesSent = send(sockfd, "uds stream", 10, 0); // send test command
             }
             else if (isMmap)
             {
-                printf("MMAP\n");
+                if (!quite)
+                    printf("MMAP\n");
                 bytesSent = send(sockfd, "mmap", 5, 0); // send test command
             }
             else if (isPipe)
             {
-                printf("PIPE\n");
+                if (!quite)
+                    printf("PIPE\n");
                 bytesSent = send(sockfd, "pipe", 5, 0); // send test command
             }
             if (bytesSent < 0)
@@ -226,26 +249,27 @@ void run_client(char *ip, char *port)
             sleep(1); // wait for server to start listening
             struct timeval start, end;
             gettimeofday(&start, NULL);
-            printf("Start at: %ld.%06ld\n", start.tv_sec, start.tv_usec);
+            if (!quite)
+                printf("Start at: %ld.%06ld\n", start.tv_sec, start.tv_usec);
             if (tcp && ipv4)
             {
-                send_file(ip, new_port, filename, AF_INET, SOCK_STREAM, IPPROTO_TCP);
+                send_file(ip, new_port, filename, AF_INET, SOCK_STREAM, IPPROTO_TCP,quite);
             }
             else if (udp && ipv4)
             {
-                send_file(ip, new_port, filename, AF_INET, SOCK_DGRAM, 0);
+                send_file(ip, new_port, filename, AF_INET, SOCK_DGRAM, 0,quite);
             }
             else if (tcp && ipv6)
             {
-                send_file(ip, new_port, filename, AF_INET6, SOCK_STREAM, IPPROTO_TCP);
+                send_file(ip, new_port, filename, AF_INET6, SOCK_STREAM, IPPROTO_TCP,quite);
             }
             else if (uds && dgram)
             {
-                send_file_uds(new_port, filename, SOCK_DGRAM);
+                send_file_uds(new_port, filename, SOCK_DGRAM,quite);
             }
             else if (uds && stream)
             {
-                send_file_uds(new_port, filename, SOCK_STREAM);
+                send_file_uds(new_port, filename, SOCK_STREAM,quite);
             }
             else if (isMmap || isPipe)
             {
@@ -263,23 +287,25 @@ void run_client(char *ip, char *port)
                 printf("ERROR recv() failed\n");
                 exit(1);
             }
-            printf("Checksum recieved!\n");
-            uint32_t my_checksum = generate_checksum(filename);
+            if (!quite)
+                printf("Checksum recieved!\n");
+            uint32_t my_checksum = generate_checksum(filename,quite);
             uint32_t checksum = atoi(messageBuffer);
-            if (my_checksum == checksum)
+            if (my_checksum == checksum && !quite)
             {
                 printf("Checksums match!\n");
             }
-            else
+            else if (!quite)
             {
                 printf("Checksums don't match, something went wrong!\n");
             }
             gettimeofday(&end, NULL);
-            printf("End at: %ld.%06ld\n", end.tv_sec, end.tv_usec);
+            if (!quite)
+                printf("End at: %ld.%06ld\n", end.tv_sec, end.tv_usec);
             print_time_diff(&start, &end);
 
             if (deleteFile)
-                delete_file(filename);
+                delete_file(filename,quite);
             exit(0);
         }
         // Poll stdin and socket
@@ -490,7 +516,7 @@ void run_server(char *port)
                     }
                     copy_file_pipe(messageBuffer, "recived.txt");
                 }
-                u_int32_t checksum = generate_checksum("recived.txt");
+                u_int32_t checksum = generate_checksum("recived.txt",0);
                 char checksum_str[10];
                 sprintf(checksum_str, "%u", checksum);
                 int bytesSent = send(clientSock, checksum_str, 10, 0);
@@ -499,7 +525,7 @@ void run_server(char *port)
                     printf("ERROR send() failed\n");
                     exit(1);
                 }
-                delete_file("recived.txt");
+                delete_file("recived.txt",0);
             }
             bzero(messageBuffer, BUFFER_SIZE_MESSAGE);
         }

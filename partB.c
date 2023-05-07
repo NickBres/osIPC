@@ -1,8 +1,7 @@
 #include "partB.h"
 
-void generate_file(char *filename, long size_in_bytes)
+void generate_file(char *filename, long size_in_bytes, int quite)
 {
-    printf("Generating file '%s' of size %ld bytes\n", filename, size_in_bytes);
     FILE *fp = fopen(filename, "wb");
     if (!fp)
     {
@@ -26,10 +25,11 @@ void generate_file(char *filename, long size_in_bytes)
     }
 
     fclose(fp);
-    printf("Generated file '%s' of size %ld bytes\n", filename, size_in_bytes);
+    if (!quite)
+        printf("Generated file '%s' of size %ld bytes\n", filename, size_in_bytes);
 }
 
-uint32_t generate_checksum(char *filename)
+uint32_t generate_checksum(char *filename, int quite)
 {
     FILE *fp = fopen(filename, "rb");
     if (!fp)
@@ -52,11 +52,12 @@ uint32_t generate_checksum(char *filename)
     }
 
     fclose(fp);
-    printf("Generated checksum for file '%s': 0x%08x\n", filename, checksum);
+    if (!quite)
+        printf("Generated checksum for file '%s': 0x%08x\n", filename, checksum);
     return checksum;
 }
 
-int delete_file(char *filename)
+int delete_file(char *filename, int quite)
 {
     int status = remove(filename);
     if (status != 0)
@@ -64,7 +65,8 @@ int delete_file(char *filename)
         printf("Error deleting file '%s'\n", filename);
         return -1;
     }
-    printf("File '%s' deleted successfully\n", filename);
+    if (!quite)
+        printf("File '%s' deleted successfully\n", filename);
     return 0;
 }
 
@@ -81,9 +83,10 @@ void print_time_diff(struct timeval *start, struct timeval *end)
     printf("Time elapsed: %ld milliseconds\n", milliseconds);
 };
 
-void send_file(char *ip, char *port, char *filename, int domain, int type, int protocol)
+void send_file(char *ip, char *port, char *filename, int domain, int type, int protocol,int quite)
 {
-    printf("Sending file '%s' to %s:%s\n", filename, ip, port);
+    if (!quite)
+        printf("Sending file '%s' to %s:%s\n", filename, ip, port);
     // Open File
     int filesize = 0;
     FILE *fp = fopen(filename, "rb");
@@ -131,7 +134,8 @@ void send_file(char *ip, char *port, char *filename, int domain, int type, int p
             printf("ERROR connecting\n");
             exit(1);
         }
-        printf("Connected to %s:%s\n", ip, port);
+        if(!quite)
+            printf("Connected to %s:%s\n", ip, port);
     }
 
     // Send file
@@ -161,7 +165,8 @@ void send_file(char *ip, char *port, char *filename, int domain, int type, int p
         bzero(buffer, BUFFER_SIZE);
     }
     fclose(fp);
-    printf("File '%s' sent successfully\n", filename);
+    if (!quite)
+        printf("File '%s' sent successfully\n", filename);
     close(sockfd);
 }
 
@@ -365,9 +370,10 @@ void recive_file_uds(char *sock_path, int type)
 }
 
 
-void send_file_uds(char *sock_path, char *filename, int type)
+void send_file_uds(char *sock_path, char *filename, int type,int quiet)
 {
-    printf("Sending file '%s' to Unix domain socket '%s'\n", filename, sock_path);
+    if(!quiet)
+        printf("Sending file '%s' to Unix domain socket '%s'\n", filename, sock_path);
 
     // Open File
     int filesize = 0;
@@ -400,7 +406,8 @@ void send_file_uds(char *sock_path, char *filename, int type)
         printf("ERROR connecting\n");
         exit(1);
     }
-    printf("Connected to Unix domain socket '%s'\n", sock_path);
+    if(!quiet)
+        printf("Connected to Unix domain socket '%s'\n", sock_path);
 
     // Send File
     char buffer[BUFFER_SIZE] = {0};
@@ -423,7 +430,8 @@ void send_file_uds(char *sock_path, char *filename, int type)
     fclose(fp);
     close(sockfd);
 
-    printf("File '%s' sent successfully\n", filename);
+    if(!quiet)
+        printf("File '%s' sent successfully\n", filename);
 }
 
 void copy_file_mmap(char* filenameFrom, char* filenameTo){

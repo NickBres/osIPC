@@ -1,5 +1,4 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -fPIC
 
 all: stnc test
 
@@ -9,7 +8,7 @@ test: test.o partB.o
 	gcc -o test test.o partB.o
 
 %.o:%.c
-	$(CC) $(CFLAGS) -c $^ -o $@	
+	$(CC)  -c $^ -o $@	
 
 clean:
 	rm -f stnc test *.o *.txt
