@@ -537,9 +537,6 @@ void copy_file_pipe(char *filenameFrom, char *filenameTo) {
     close(fdTo);
 }
 
-
-
-
 int min(int a, int b)
 {
     if (a < b)
