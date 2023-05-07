@@ -52,7 +52,8 @@ All generated files will be deleted after the test.
    ./stnc -c <ip> <port> -p <type> <param>
    ```
 Time results will be printed on Client side.
-You can add -q flag for quite run (Only time result will be printed).
+
+Add -q flag for quite run (Only time result will be printed).
 
 ## Screenshots
 ![image](https://user-images.githubusercontent.com/70432147/236688965-f214716d-f9f5-40ff-a159-8a0d77e59254.png)
