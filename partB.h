@@ -33,6 +33,7 @@ void recive_file(char* port,int domain, int type, int protocol);
 void send_file_uds(char* filename,char* sockpath,int type);
 void recive_file_uds(char* sockpath,int type);
 void copy_file_mmap(char* filenameFrom, char* filenameTo);
+void copy_file_pipe(char* filenameFrom, char* filenameTo);
 int min(int a, int b);
 
 #endif

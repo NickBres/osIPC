@@ -488,6 +488,63 @@ void copy_file_mmap(char* filenameFrom, char* filenameTo){
 
 }
 
+void copy_file_pipe(char *filenameFrom, char *filenameTo) {
+    // Open file
+    int fdFrom = open(filenameFrom, O_RDONLY, S_IRUSR | S_IWUSR);
+    if (fdFrom < 0) {
+        printf("ERROR opening file\n");
+        exit(1);
+    }
+
+    // Create file
+    int fdTo = open(filenameTo, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+    if (fdTo < 0) {
+        printf("ERROR opening file\n");
+        exit(1);
+    }
+    
+
+    int pipefd[2]; // Create pipe
+    if(pipe(pipefd) < 0) {
+        printf("ERROR pipe\n");
+        exit(1);
+    }
+    pid_t pid = fork();
+
+    if(pid < 0){
+        printf("ERROR fork\n");
+        exit(1);
+    }else if(pid == 0){ // Child
+        close(pipefd[0]); // Close read end
+        char buffer[BUFFER_SIZE]; 
+        int bytes_read = 0;
+        while((bytes_read = read(fdFrom, buffer, BUFFER_SIZE)) > 0){ // Read from file to buffer
+            if(write(pipefd[1], buffer, bytes_read) < 0){ // Write to pipe
+                printf("ERROR write\n");
+                exit(1);
+            }
+        }
+        close(pipefd[1]);
+        exit(0);
+    }else{
+        close(pipefd[1]);
+        char buffer[BUFFER_SIZE];
+        int bytes_read = 0;
+        while((bytes_read = read(pipefd[0], buffer, BUFFER_SIZE)) > 0){  // Read from pipe
+            if(write(fdTo, buffer, bytes_read) < 0){ // Write to file
+                printf("ERROR write\n");
+                exit(1);
+            }
+        }
+        close(pipefd[0]);
+        wait(NULL);
+    }
+
+    close(fdFrom);
+    close(fdTo);
+}
+
+
 
 
 int min(int a, int b)

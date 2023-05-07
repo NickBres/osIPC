@@ -227,7 +227,7 @@ void run_client(char *ip, char *port)
                 send_file_uds(new_port, filename, SOCK_DGRAM);
             }else if(uds && stream){
                 send_file_uds(new_port, filename, SOCK_STREAM);
-            }else if (mmap)
+            }else if (mmap || pipe)
             {
                 bytesSent = send(sockfd, filename, strlen(filename), 0); // send filename
                 if (bytesSent < 0)
@@ -443,6 +443,15 @@ void run_server(char *port)
                         exit(1);
                     }
                     copy_file_mmap(messageBuffer, "recived.txt");
+                }else if(!strcmp(messageBuffer,"pipe")){
+                    printf("Pipe\n");
+                    bytesRecv = recv(clientSock, messageBuffer, BUFFER_SIZE_MESSAGE - 1, 0); // recive file name
+                    if (bytesRecv < 0)
+                    {
+                        printf("ERROR recv() failed\n");
+                        exit(1);
+                    }
+                    copy_file_pipe(messageBuffer, "recived.txt");
                 }
                 u_int32_t checksum = generate_checksum("recived.txt");
                 char checksum_str[10];
