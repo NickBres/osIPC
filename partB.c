@@ -140,11 +140,7 @@ void send_file(char *ip, char *port, char *filename, int domain, int type, int p
     while (sent_bytes < filesize)
     {
         bytes_read = min(BUFFER_SIZE, filesize - sent_bytes); // Read at most BUFFER_SIZE bytes
-        if (fread(buffer, 1, bytes_read, fp) < 0)
-        {
-            printf("ERROR reading file\n");
-            exit(1);
-        }
+        fread(buffer, 1, bytes_read, fp);
         int bytes_sent;
         if (type == SOCK_STREAM)
         {
@@ -267,11 +263,7 @@ void recive_file(char *port, int domain, int type, int protocol)
         }
 
         // Write to file
-        if (fwrite(buffer, recived, 1, fp) < 0)
-        {
-            printf("ERROR writing file\n");
-            exit(1);
-        }
+        fwrite(buffer, recived, 1, fp);
         bzero(buffer, BUFFER_SIZE);
     }
     fclose(fp);
@@ -358,11 +350,7 @@ void recive_file_uds(char *sock_path, int type)
         }
 
         // Write to file
-        if (fwrite(buffer, recived, 1, fp) < 0)
-        {
-            printf("ERROR writing file\n");
-            exit(1);
-        }
+        fwrite(buffer, recived, 1, fp);
         bzero(buffer, BUFFER_SIZE);
     }
 
@@ -420,11 +408,7 @@ void send_file_uds(char *sock_path, char *filename, int type)
     while (sent_bytes < filesize)
     {
         bytes_read = min(BUFFER_SIZE, filesize - sent_bytes); // Read at most BUFFER_SIZE bytes
-        if (fread(buffer, 1, bytes_read, fp) < 0)
-        {
-            printf("ERROR reading file\n");
-            exit(1);
-        }
+        fread(buffer, 1, bytes_read, fp);
         int bytes_sent = send(sockfd, buffer, bytes_read, 0);
         if (bytes_sent < 0)
         {

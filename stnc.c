@@ -9,7 +9,8 @@ int uds = 0;
 int dgram = 0;
 int stream = 0;
 int isMmap = 0;
-int pipef = 0;
+int isPipe = 0;
+int deleteFile = 0;
 char *filename = NULL;
 
 int main(int argc, char *argv[])
@@ -21,17 +22,17 @@ int main(int argc, char *argv[])
     }
     if (!strcmp(argv[1], "-c"))
     {
-        if (!strcmp(argv[4], "-p"))
+        if (argc > 4 && !strcmp(argv[4], "-p"))
         {
             test = 1;
-            if (!strcmp(argv[5], "ipv4"))
+            if (argc > 5 && !strcmp(argv[5], "ipv4"))
             {
                 ipv4 = 1;
-                if (!strcmp(argv[6], "tcp"))
+                if (argc == 7 && !strcmp(argv[6], "tcp"))
                 {
                     tcp = 1;
                 }
-                else if (!strcmp(argv[6], "udp"))
+                else if (argc == 7 && !strcmp(argv[6], "udp"))
                 {
                     udp = 1;
                 }
@@ -41,14 +42,14 @@ int main(int argc, char *argv[])
                     return 1;
                 }
             }
-            else if (!strcmp(argv[5], "ipv6"))
+            else if (argc > 5 && !strcmp(argv[5], "ipv6"))
             {
                 ipv6 = 1;
-                if (!strcmp(argv[6], "tcp"))
+                if (argc == 7 && !strcmp(argv[6], "tcp"))
                 {
                     tcp = 1;
                 }
-                else if (!strcmp(argv[6], "udp"))
+                else if (argc == 7 && !strcmp(argv[6], "udp"))
                 {
                     udp = 1;
                 }
@@ -58,14 +59,14 @@ int main(int argc, char *argv[])
                     return 1;
                 }
             }
-            else if (!strcmp(argv[5], "uds"))
+            else if (argc > 5 && !strcmp(argv[5], "uds"))
             {
                 uds = 1;
-                if (!strcmp(argv[6], "dgram"))
+                if (argc == 7 && !strcmp(argv[6], "dgram"))
                 {
                     dgram = 1;
                 }
-                else if (!strcmp(argv[6], "stream"))
+                else if (argc == 7 && !strcmp(argv[6], "stream"))
                 {
                     stream = 1;
                 }
@@ -75,20 +76,20 @@ int main(int argc, char *argv[])
                     return 1;
                 }
             }
-            else if (!strcmp(argv[5], "mmap"))
+            else if (argc > 5 && !strcmp(argv[5], "mmap"))
             {
                 isMmap = 1;
-                if (argv[6] == NULL)
+                if (argc == 7 && argv[6] == NULL)
                 {
                     printf("No filename!\n");
                     return 1;
                 }
                 filename = argv[6];
             }
-            else if (!strcmp(argv[5], "pipe"))
+            else if (argc > 5 && !strcmp(argv[5], "pipe"))
             {
-                pipef = 1;
-                if (argv[6] == NULL)
+                isPipe = 1;
+                if (argc == 7 && argv[6] == NULL)
                 {
                     printf("No filename!\n");
                     return 1;
@@ -161,11 +162,13 @@ void run_client(char *ip, char *port)
     {
         if (test)
         { // test mode
-            // generate file
+
+            // generate file if not exist
             if(filename == NULL){
                 filename = "test.txt";
+                generate_file(filename, 100 * 1024 * 1024);
+                deleteFile = 1; // flag to delete file after transfer
             }
-            generate_file(filename, 100 * 1024 * 1024);
             // create new port for file transfer port+1
             char new_port[10];
             sprintf(new_port, "%d", atoi(port) + 1);
@@ -200,7 +203,7 @@ void run_client(char *ip, char *port)
             }else if (isMmap){
                 printf("MMAP\n");
                 bytesSent = send(sockfd, "mmap", 5, 0); // send test command
-            }else if(pipe){
+            }else if(isPipe){
                 printf("PIPE\n");
                 bytesSent = send(sockfd, "pipe", 5, 0); // send test command
             }
@@ -227,7 +230,7 @@ void run_client(char *ip, char *port)
                 send_file_uds(new_port, filename, SOCK_DGRAM);
             }else if(uds && stream){
                 send_file_uds(new_port, filename, SOCK_STREAM);
-            }else if (mmap || pipe)
+            }else if (isMmap || isPipe)
             {
                 bytesSent = send(sockfd, filename, strlen(filename), 0); // send filename
                 if (bytesSent < 0)
@@ -258,7 +261,9 @@ void run_client(char *ip, char *port)
             printf("End at: %ld.%06ld\n", end.tv_sec, end.tv_usec);
             print_time_diff(&start, &end);
 
-            delete_file(filename);
+            if(deleteFile)
+                delete_file(filename);
+            exit(0);
         }
         // Poll stdin and socket
         int pollResult = poll(fds, 2, timeout);
