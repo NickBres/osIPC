@@ -43,7 +43,7 @@ For the file transfer in a different ways:
 
 
 Only file transfer will be in the given way. All other communications between server and client will be in chat using tcp.
-First 6 options will generate 100mb file automatically in the project folder. 2 last options will need path to an existing file in <param>, if you will not write a filename it will be generated as in other methods.
+First 6 options will generate 100mb file automatically in the project folder. 2 last options will need path to an existing file in <param>, if you will write "default" instead, it will be generated as in other methods.
 All generated files will be deleted after the test.
 
 > When sending file via udp or uds dgram time shown will not show the real time it took to transfer the file it because it waiting 2 seconds timeout to finish the file transfer from the server side. So real time will be approximately (given - 2000).
