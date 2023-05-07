@@ -63,8 +63,10 @@ Add -q flag for quite run (Only time result will be printed).
 ![image](https://user-images.githubusercontent.com/70432147/236689182-bcd89702-3a87-4fee-b257-5c481eae0ba3.png)
 ![image](https://user-images.githubusercontent.com/70432147/236689222-126ec1d5-69f7-4001-a433-9b2272a036ee.png)
 ![image](https://user-images.githubusercontent.com/70432147/236689240-97a431e8-06b1-47a3-9497-d5928cb45675.png)
-![image](https://user-images.githubusercontent.com/70432147/236689265-1be85d93-4d1e-4d49-980f-5cda25ad035a.png)
-![image](https://user-images.githubusercontent.com/70432147/236689286-5dec142b-7c09-4509-969a-ccdc07034012.png)
+![image](https://user-images.githubusercontent.com/70432147/236694647-d60cd108-0d9c-4839-8529-b82a2781ad46.png)
+![image](https://user-images.githubusercontent.com/70432147/236694659-99f77d5e-df7e-4a7a-ba5d-37e563a1b693.png)
+![image](https://user-images.githubusercontent.com/70432147/236694670-812d6f39-9a94-420e-96a6-a464fcf5fdc6.png)
+
 
 
 
