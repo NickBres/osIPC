@@ -81,20 +81,16 @@ int main(int argc, char *argv[])
                 isMmap = 1;
                 if (argc == 7 && argv[6] == NULL)
                 {
-                    printf("No filename!\n");
-                    return 1;
+                    filename = argv[6];
                 }
-                filename = argv[6];
             }
             else if (argc > 5 && !strcmp(argv[5], "pipe"))
             {
                 isPipe = 1;
-                if (argc == 7 && argv[6] == NULL)
+                if (argc == 7 && argv[6] != NULL)
                 {
-                    printf("No filename!\n");
-                    return 1;
+                    filename = argv[6];
                 }
-                filename = argv[6];
             }
             else
             {
@@ -164,7 +160,8 @@ void run_client(char *ip, char *port)
         { // test mode
 
             // generate file if not exist
-            if(filename == NULL){
+            if (filename == NULL)
+            {
                 filename = "test.txt";
                 generate_file(filename, 100 * 1024 * 1024);
                 deleteFile = 1; // flag to delete file after transfer
@@ -191,19 +188,33 @@ void run_client(char *ip, char *port)
                 printf("UDP IPv4\n");
                 bytesSent = send(sockfd, "ipv4 udp", 8, 0); // send test command
             }
-            else if(tcp && ipv6){
+            else if (tcp && ipv6)
+            {
                 printf("TCP IPv6\n");
                 bytesSent = send(sockfd, "ipv6 tcp", 8, 0); // send test command
-            }else if(uds && dgram){
+            }
+            else if (udp && ipv6)
+            {
+                printf("UDP IPv6\n");
+                bytesSent = send(sockfd, "ipv6 udp", 8, 0); // send test command
+            }
+            else if (uds && dgram)
+            {
                 printf("UDS DGRAM\n");
                 bytesSent = send(sockfd, "uds dgram", 9, 0); // send test command
-            }else if(uds && stream){
+            }
+            else if (uds && stream)
+            {
                 printf("UDS STREAM\n");
                 bytesSent = send(sockfd, "uds stream", 10, 0); // send test command
-            }else if (isMmap){
+            }
+            else if (isMmap)
+            {
                 printf("MMAP\n");
                 bytesSent = send(sockfd, "mmap", 5, 0); // send test command
-            }else if(isPipe){
+            }
+            else if (isPipe)
+            {
                 printf("PIPE\n");
                 bytesSent = send(sockfd, "pipe", 5, 0); // send test command
             }
@@ -223,14 +234,20 @@ void run_client(char *ip, char *port)
             else if (udp && ipv4)
             {
                 send_file(ip, new_port, filename, AF_INET, SOCK_DGRAM, 0);
-            }else if(tcp && ipv6){
+            }
+            else if (tcp && ipv6)
+            {
                 send_file(ip, new_port, filename, AF_INET6, SOCK_STREAM, IPPROTO_TCP);
-            }else if (uds && dgram)
+            }
+            else if (uds && dgram)
             {
                 send_file_uds(new_port, filename, SOCK_DGRAM);
-            }else if(uds && stream){
+            }
+            else if (uds && stream)
+            {
                 send_file_uds(new_port, filename, SOCK_STREAM);
-            }else if (isMmap || isPipe)
+            }
+            else if (isMmap || isPipe)
             {
                 bytesSent = send(sockfd, filename, strlen(filename), 0); // send filename
                 if (bytesSent < 0)
@@ -239,7 +256,7 @@ void run_client(char *ip, char *port)
                     exit(1);
                 }
             }
-            
+
             int recieved = recv(sockfd, messageBuffer, BUFFER_SIZE_MESSAGE - 1, 0); // recieve checksum
             if (recieved < 0)
             {
@@ -261,7 +278,7 @@ void run_client(char *ip, char *port)
             printf("End at: %ld.%06ld\n", end.tv_sec, end.tv_usec);
             print_time_diff(&start, &end);
 
-            if(deleteFile)
+            if (deleteFile)
                 delete_file(filename);
             exit(0);
         }
@@ -421,25 +438,38 @@ void run_server(char *port)
 
                 char *new_port[10];
                 sprintf(new_port, "%d", atoi(port) + 1);
-                if(!strcmp(messageBuffer, "ipv4 tcp")){
+                if (!strcmp(messageBuffer, "ipv4 tcp"))
+                {
                     printf("TCP IPv4\n");
                     recive_file(new_port, AF_INET, SOCK_STREAM, IPPROTO_TCP);
-                }else if (!strcmp(messageBuffer, "ipv4 udp")){
+                }
+                else if (!strcmp(messageBuffer, "ipv4 udp"))
+                {
                     printf("UDP IPv4\n");
                     recive_file(new_port, AF_INET, SOCK_DGRAM, 0);
-                }else if(!strcmp(messageBuffer, "ipv6 tcp")){
+                }
+                else if (!strcmp(messageBuffer, "ipv6 tcp"))
+                {
                     printf("TCP IPv6\n");
                     recive_file(new_port, AF_INET6, SOCK_STREAM, IPPROTO_TCP);
-                }else if(!strcmp(messageBuffer, "ipv6 udp")){
+                }
+                else if (!strcmp(messageBuffer, "ipv6 udp"))
+                {
                     printf("UDP IPv6\n");
                     recive_file(new_port, AF_INET6, SOCK_DGRAM, 0);
-                }else if(!strcmp(messageBuffer,"uds dgram")){
+                }
+                else if (!strcmp(messageBuffer, "uds dgram"))
+                {
                     printf("UDS DGRAM\n");
-                    recive_file_uds(new_port,SOCK_DGRAM);
-                }else if(!strcmp(messageBuffer,"uds stream")){
+                    recive_file_uds(new_port, SOCK_DGRAM);
+                }
+                else if (!strcmp(messageBuffer, "uds stream"))
+                {
                     printf("UDS STREAM\n");
-                    recive_file_uds(new_port,SOCK_STREAM);
-                }else if(!strcmp(messageBuffer,"mmap")){
+                    recive_file_uds(new_port, SOCK_STREAM);
+                }
+                else if (!strcmp(messageBuffer, "mmap"))
+                {
                     printf("Mmap\n");
                     bytesRecv = recv(clientSock, messageBuffer, BUFFER_SIZE_MESSAGE - 1, 0); // recive file name
                     if (bytesRecv < 0)
@@ -448,7 +478,9 @@ void run_server(char *port)
                         exit(1);
                     }
                     copy_file_mmap(messageBuffer, "recived.txt");
-                }else if(!strcmp(messageBuffer,"pipe")){
+                }
+                else if (!strcmp(messageBuffer, "pipe"))
+                {
                     printf("Pipe\n");
                     bytesRecv = recv(clientSock, messageBuffer, BUFFER_SIZE_MESSAGE - 1, 0); // recive file name
                     if (bytesRecv < 0)

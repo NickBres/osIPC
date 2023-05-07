@@ -77,7 +77,8 @@ void print_time_diff(struct timeval *start, struct timeval *end)
         microseconds += 1000000;
         seconds--;
     }
-    printf("Time elapsed: %ld.%06ld seconds\n", seconds, microseconds);
+    long milliseconds = seconds * 1000 + microseconds / 1000;
+    printf("Time elapsed: %ld milliseconds\n", milliseconds);
 };
 
 void send_file(char *ip, char *port, char *filename, int domain, int type, int protocol)
@@ -521,7 +522,7 @@ void copy_file_pipe(char *filenameFrom, char *filenameTo) {
             }
         }
         close(pipefd[0]);
-        wait(NULL);
+        pid_t wait(int *status);
     }
 
     close(fdFrom);
