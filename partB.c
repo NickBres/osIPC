@@ -78,7 +78,7 @@ void print_time_diff(struct timeval *start, struct timeval *end)
         seconds--;
     }
     long milliseconds = seconds * 1000 + microseconds / 1000;
-    printf("Time elapsed: %ld milliseconds\n", milliseconds);
+    printf("%ld\n", milliseconds);
 };
 
 int open_file_read(char *filename, FILE **fp)
@@ -120,6 +120,7 @@ void send_file(char *ip, char *port, char *filename, int domain, int type, int p
     int filesize = open_file_read(filename, &fp);
     if (filesize < 0)
     {
+        printf("Error opening file\n");
         return;
     }
 
@@ -211,9 +212,10 @@ void send_file(char *ip, char *port, char *filename, int domain, int type, int p
     close(sockfd);
 }
 
-void recive_file(char *port, int domain, int type, int protocol)
+void recive_file(char *port, int domain, int type, int protocol,int filesize,int quiet)
 {
-    printf("Reciving file on port %s\n", port);
+    if(!quiet)
+        printf("Reciving file on port %s\n", port);
     // Create Socket
     int sockfd = socket(domain, type, protocol);
     if (sockfd < 0)
@@ -271,16 +273,14 @@ void recive_file(char *port, int domain, int type, int protocol)
         exit(1);
     }
 
-    struct pollfd fds[2];
-    fds[0].fd = sockfd;
-    fds[0].events = POLLIN;
 
     int newsockfd;
     if (type == SOCK_STREAM)
     {
 
         listen(sockfd, 1);
-        printf("Listening on port %s\n", port);
+        if(!quiet)
+            printf("Listening on port %s\n", port);
 
         newsockfd = accept(sockfd, (struct sockaddr *)&serveraddr, &addr_size);
         if (newsockfd < 0)
@@ -288,23 +288,18 @@ void recive_file(char *port, int domain, int type, int protocol)
             printf("ERROR on accept\n");
             exit(1);
         }
-        fds[1].fd = newsockfd;
-        fds[1].events = POLLIN;
-        printf("Accepted connection \n");
+        if(!quiet)
+            printf("Accepted connection \n");
     }
 
     // Recive File
     char buffer[BUFFER_SIZE] = {0};
     FILE *fp = fopen("recived.txt", "wb");
-    while (1)
+    int size = 0;
+    while (size < filesize)
     {
 
-        int poll_status = poll(fds, 2, 2000); // 2 seconds timeout
-        if (poll_status == 0)
-        {
-            printf("Timeout\n");
-            break;
-        }
+        
         int recived;
         if (type == SOCK_STREAM)
         {
@@ -323,6 +318,7 @@ void recive_file(char *port, int domain, int type, int protocol)
         {
             break;
         }
+        size += recived;
 
         // Write to file
         fwrite(buffer, recived, 1, fp);
@@ -451,6 +447,16 @@ void copy_file_pipe(char *filenameFrom, char *filenameTo)
 
     close(fdFrom);
     close(fdTo);
+}
+
+int get_file_size(char *filename){
+    struct stat statFrom; // Get file size
+    if (stat(filename, &statFrom) < 0)
+    {
+        printf("ERROR stat\n");
+        exit(1);
+    }
+    return statFrom.st_size;
 }
 
 int min(int a, int b)

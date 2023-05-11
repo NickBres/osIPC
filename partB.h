@@ -26,9 +26,12 @@ uint32_t generate_checksum(char* filename, int quite);
 int delete_file(char* filename, int quite);
 void print_time_diff(struct timeval* start, struct timeval* end);
 void send_file(char *ip, char* port, char* filename, int domain, int type, int protocol, int quite);
-void recive_file(char* port,int domain, int type, int protocol);
+void recive_file(char* port,int domain, int type, int protocol,int filesize,int quiet);
 void copy_file_mmap(char* filenameFrom, char* filenameTo);
 void copy_file_pipe(char* filenameFrom, char* filenameTo);
 int min(int a, int b);
+int get_file_size(char* filename);
+int open_file_read(char *filename, FILE **fp);
+int open_file_write(char *filename, FILE **fp);
 
 #endif
