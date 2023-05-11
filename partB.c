@@ -1,11 +1,9 @@
 #include "partB.h"
 
-void generate_file(char *filename, long size_in_bytes, int quite)
+void generate_file(char *filename, long size_in_bytes, int quiet)
 {
-    FILE *fp = fopen(filename, "wb");
-    if (!fp)
-    {
-        printf("Error opening file '%s'\n", filename);
+    FILE *fp;
+    if(open_file_write(filename, &fp) < 0){
         return;
     }
 
@@ -25,17 +23,15 @@ void generate_file(char *filename, long size_in_bytes, int quite)
     }
 
     fclose(fp);
-    if (!quite)
+    if (!quiet)
         printf("Generated file '%s' of size %ld bytes\n", filename, size_in_bytes);
 }
 
-uint32_t generate_checksum(char *filename, int quite)
+uint32_t generate_checksum(char *filename, int quiet)
 {
-    FILE *fp = fopen(filename, "rb");
-    if (!fp)
-    {
-        printf("Error opening file '%s'\n", filename);
-        return 0;
+    FILE *fp;
+    if(open_file_read(filename, &fp) < 0){
+        return -1;
     }
 
     const int chunk_size = 1024 * 1024; // 1MB
@@ -52,12 +48,12 @@ uint32_t generate_checksum(char *filename, int quite)
     }
 
     fclose(fp);
-    if (!quite)
+    if (!quiet)
         printf("Generated checksum for file '%s': 0x%08x\n", filename, checksum);
     return checksum;
 }
 
-int delete_file(char *filename, int quite)
+int delete_file(char *filename, int quiet)
 {
     int status = remove(filename);
     if (status != 0)
@@ -65,7 +61,7 @@ int delete_file(char *filename, int quite)
         printf("Error deleting file '%s'\n", filename);
         return -1;
     }
-    if (!quite)
+    if (!quiet)
         printf("File '%s' deleted successfully\n", filename);
     return 0;
 }
@@ -83,21 +79,45 @@ void print_time_diff(struct timeval *start, struct timeval *end)
     printf("Time elapsed: %ld milliseconds\n", milliseconds);
 };
 
-void send_file(char *ip, char *port, char *filename, int domain, int type, int protocol,int quite)
-{
-    if (!quite)
-        printf("Sending file '%s' to %s:%s\n", filename, ip, port);
-    // Open File
-    int filesize = 0;
-    FILE *fp = fopen(filename, "rb");
-    if (!fp)
+int open_file_read(char *filename,FILE** fp){
+    *fp = fopen(filename, "rb");
+    if (!*fp)
     {
         printf("Error opening file '%s'\n", filename);
+        return -1;
+    }
+    int filesize = 0;
+    fseek(*fp, 0L, SEEK_END); // seek to end of file
+    filesize = ftell(*fp);    // get current file pointer
+    fseek(*fp, 0L, SEEK_SET); // seek back to beginning of file
+    return filesize;
+}
+
+int open_file_write(char *filename, FILE ** fp){
+    *fp = fopen(filename, "wb");
+    if (!*fp)
+    {
+        printf("Error opening file '%s'\n", filename);
+        return -1;
+    }
+    int filesize = 0;
+    fseek(*fp, 0L, SEEK_END); // seek to end of file
+    filesize = ftell(*fp);    // get current file pointer
+    fseek(*fp, 0L, SEEK_SET); // seek back to beginning of file
+    return filesize;
+}
+
+void send_file(char *ip, char *port, char *filename, int domain, int type, int protocol,int quiet)
+{
+    if (!quiet)
+        printf("Sending file '%s' to %s:%s\n", filename, ip, port);
+    // Open File
+    FILE *fp;
+    int filesize = open_file_read(filename, &fp);
+    if (filesize < 0)
+    {
         return;
     }
-    fseek(fp, 0L, SEEK_END); // seek to end of file
-    filesize = ftell(fp);    // get current file pointer
-    fseek(fp, 0L, SEEK_SET); // seek back to beginning of file
 
     // Create Socket
     int sockfd = socket(domain, type, type == SOCK_DGRAM ? 0 : protocol);
@@ -134,7 +154,7 @@ void send_file(char *ip, char *port, char *filename, int domain, int type, int p
             printf("ERROR connecting\n");
             exit(1);
         }
-        if(!quite)
+        if(!quiet)
             printf("Connected to %s:%s\n", ip, port);
     }
 
@@ -165,7 +185,7 @@ void send_file(char *ip, char *port, char *filename, int domain, int type, int p
         bzero(buffer, BUFFER_SIZE);
     }
     fclose(fp);
-    if (!quite)
+    if (!quiet)
         printf("File '%s' sent successfully\n", filename);
     close(sockfd);
 }

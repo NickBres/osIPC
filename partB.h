@@ -19,10 +19,6 @@
 #include <sys/mman.h>
 
 
-
-
-
-
 #define BUFFER_SIZE 32768 // 32KB udp cant send more 
 
 void generate_file(char* filename, long size_in_bytes,int quite);
