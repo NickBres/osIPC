@@ -265,11 +265,13 @@ void run_client(char *ip, char *port)
             }
             else if (uds && dgram)
             {
-                send_file_uds(new_port, filename, SOCK_DGRAM,quite);
+                //send_file_uds(new_port, filename, SOCK_DGRAM,quite);
+                send_file(0,new_port,filename,AF_UNIX,SOCK_DGRAM,0,quite);
             }
             else if (uds && stream)
             {
-                send_file_uds(new_port, filename, SOCK_STREAM,quite);
+                //send_file_uds(new_port, filename, SOCK_STREAM,quite);
+                send_file(0,new_port,filename,AF_UNIX,SOCK_STREAM,0,quite);
             }
             else if (isMmap || isPipe)
             {
@@ -487,12 +489,14 @@ void run_server(char *port)
                 else if (!strcmp(messageBuffer, "uds dgram"))
                 {
                     printf("UDS DGRAM\n");
-                    recive_file_uds(new_port, SOCK_DGRAM);
+                    //recive_file_uds(new_port, SOCK_DGRAM);
+                    recive_file(new_port, AF_UNIX, SOCK_DGRAM, 0);
                 }
                 else if (!strcmp(messageBuffer, "uds stream"))
                 {
                     printf("UDS STREAM\n");
-                    recive_file_uds(new_port, SOCK_STREAM);
+                    //recive_file_uds(new_port, SOCK_STREAM);
+                    recive_file(new_port, AF_UNIX, SOCK_STREAM, 0);
                 }
                 else if (!strcmp(messageBuffer, "mmap"))
                 {

@@ -1,6 +1,6 @@
 CC = gcc
 
-all: stnc test
+all: stnc
 
 stnc: partB.o stnc.o
 	gcc -o stnc stnc.o partB.o

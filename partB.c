@@ -3,7 +3,8 @@
 void generate_file(char *filename, long size_in_bytes, int quiet)
 {
     FILE *fp;
-    if(open_file_write(filename, &fp) < 0){
+    if (open_file_write(filename, &fp) < 0)
+    {
         return;
     }
 
@@ -30,7 +31,8 @@ void generate_file(char *filename, long size_in_bytes, int quiet)
 uint32_t generate_checksum(char *filename, int quiet)
 {
     FILE *fp;
-    if(open_file_read(filename, &fp) < 0){
+    if (open_file_read(filename, &fp) < 0)
+    {
         return -1;
     }
 
@@ -79,7 +81,8 @@ void print_time_diff(struct timeval *start, struct timeval *end)
     printf("Time elapsed: %ld milliseconds\n", milliseconds);
 };
 
-int open_file_read(char *filename,FILE** fp){
+int open_file_read(char *filename, FILE **fp)
+{
     *fp = fopen(filename, "rb");
     if (!*fp)
     {
@@ -93,7 +96,8 @@ int open_file_read(char *filename,FILE** fp){
     return filesize;
 }
 
-int open_file_write(char *filename, FILE ** fp){
+int open_file_write(char *filename, FILE **fp)
+{
     *fp = fopen(filename, "wb");
     if (!*fp)
     {
@@ -107,7 +111,7 @@ int open_file_write(char *filename, FILE ** fp){
     return filesize;
 }
 
-void send_file(char *ip, char *port, char *filename, int domain, int type, int protocol,int quiet)
+void send_file(char *ip, char *port, char *filename, int domain, int type, int protocol, int quiet)
 {
     if (!quiet)
         printf("Sending file '%s' to %s:%s\n", filename, ip, port);
@@ -120,15 +124,17 @@ void send_file(char *ip, char *port, char *filename, int domain, int type, int p
     }
 
     // Create Socket
-    int sockfd = socket(domain, type, type == SOCK_DGRAM ? 0 : protocol);
+    int sockfd = socket(domain, type, protocol);
     if (sockfd < 0)
     {
         printf("ERROR opening socket\n");
         exit(1);
     }
     struct sockaddr_storage addr;
-    
-    if(domain == AF_INET6){ // ipv6
+    socklen_t addr_len;
+
+    if (domain == AF_INET6)
+    { // ipv6
         int optval = 1;
         setsockopt(sockfd, IPPROTO_IPV6, IPV6_V6ONLY, &optval, sizeof(optval));
         struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)&addr;
@@ -137,24 +143,39 @@ void send_file(char *ip, char *port, char *filename, int domain, int type, int p
         addr6->sin6_port = htons(atoi(port));
         inet_pton(AF_INET6, ip, &addr6->sin6_addr);
 
+        addr_len = sizeof(*addr6);
         addr = *(struct sockaddr_storage *)addr6;
-    }else if(domain == AF_INET){ // ipv4
+    }
+    else if (domain == AF_INET)
+    { // ipv4
         struct sockaddr_in *addr4 = (struct sockaddr_in *)&addr;
         memset((char *)addr4, 0, sizeof(*addr4));
         addr4->sin_family = domain;
         addr4->sin_port = htons(atoi(port));
         inet_pton(AF_INET, ip, &addr4->sin_addr);
 
+        addr_len = sizeof(*addr4);
         addr = *(struct sockaddr_storage *)addr4;
     }
-    if (type == SOCK_STREAM)
+    else if (domain == AF_UNIX)
+    { // unix
+        struct sockaddr_un *addr_un = (struct sockaddr_un *)&addr;
+        memset((char *)addr_un, 0, sizeof(*addr_un));
+        addr_un->sun_family = domain;
+        strcpy(addr_un->sun_path, port); // port must be socket path
+
+        addr_len = sizeof(*addr_un);
+        addr = *(struct sockaddr_storage *)addr_un;
+    }
+
+    if (type == SOCK_STREAM || domain == AF_UNIX)
     {
-        if (connect(sockfd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
+        if (connect(sockfd, (struct sockaddr *)&addr, addr_len) < 0)
         {
             printf("ERROR connecting\n");
             exit(1);
         }
-        if(!quiet)
+        if (!quiet)
             printf("Connected to %s:%s\n", ip, port);
     }
 
@@ -167,7 +188,7 @@ void send_file(char *ip, char *port, char *filename, int domain, int type, int p
         bytes_read = min(BUFFER_SIZE, filesize - sent_bytes); // Read at most BUFFER_SIZE bytes
         fread(buffer, 1, bytes_read, fp);
         int bytes_sent;
-        if (type == SOCK_STREAM)
+        if (type == SOCK_STREAM || domain == AF_UNIX)
         {
             bytes_sent = send(sockfd, buffer, bytes_read, 0);
         }
@@ -200,14 +221,14 @@ void recive_file(char *port, int domain, int type, int protocol)
         printf("ERROR opening socket\n");
         exit(1);
     }
-    
+
     struct sockaddr_storage serveraddr, clientaddr;
     // Bind Socket
-    
 
     socklen_t addr_size;
 
-    if(domain == AF_INET6){ // ipv6
+    if (domain == AF_INET6)
+    { // ipv6
         int optval = 1;
         setsockopt(sockfd, IPPROTO_IPV6, IPV6_V6ONLY, &optval, sizeof(optval));
         struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)&serveraddr;
@@ -218,7 +239,9 @@ void recive_file(char *port, int domain, int type, int protocol)
 
         addr_size = sizeof(*addr6);
         serveraddr = *(struct sockaddr_storage *)addr6;
-    }else if(domain == AF_INET){ // ipv4
+    }
+    else if (domain == AF_INET)
+    { // ipv4
         struct sockaddr_in *addr4 = (struct sockaddr_in *)&serveraddr;
         memset((char *)addr4, 0, sizeof(*addr4));
         addr4->sin_family = domain;
@@ -228,21 +251,34 @@ void recive_file(char *port, int domain, int type, int protocol)
         addr_size = sizeof(*addr4);
         serveraddr = *(struct sockaddr_storage *)addr4;
     }
-    if (bind(sockfd, (struct sockaddr *)&serveraddr, sizeof(serveraddr)) < 0)
+    else if (domain == AF_UNIX)
+    { // unix
+        struct sockaddr_un *addr_un = (struct sockaddr_un *)&serveraddr;
+        memset((char *)addr_un, 0, sizeof(*addr_un));
+        addr_un->sun_family = domain;
+        strncpy(addr_un->sun_path, port, sizeof(addr_un->sun_path) - 1);
+
+        addr_size = sizeof(*addr_un);
+        serveraddr = *(struct sockaddr_storage *)addr_un;
+    }else{
+        printf("ERROR: Invalid domain\n");
+        exit(1);
+    }
+
+    if (bind(sockfd, (struct sockaddr *)&serveraddr, addr_size) < 0)
     {
         printf("ERROR on binding\n");
         exit(1);
     }
 
     struct pollfd fds[2];
-        fds[0].fd = sockfd;
-        fds[0].events = POLLIN;
+    fds[0].fd = sockfd;
+    fds[0].events = POLLIN;
 
-    
     int newsockfd;
     if (type == SOCK_STREAM)
     {
-        
+
         listen(sockfd, 1);
         printf("Listening on port %s\n", port);
 
@@ -262,7 +298,7 @@ void recive_file(char *port, int domain, int type, int protocol)
     FILE *fp = fopen("recived.txt", "wb");
     while (1)
     {
-        
+
         int poll_status = poll(fds, 2, 2000); // 2 seconds timeout
         if (poll_status == 0)
         {
@@ -296,165 +332,14 @@ void recive_file(char *port, int domain, int type, int protocol)
     if (type == SOCK_STREAM)
         close(newsockfd);
     close(sockfd);
+    if (domain == AF_UNIX)
+    {
+        unlink(port);
+    }
 }
 
-void recive_file_uds(char *sock_path, int type)
+void copy_file_mmap(char *filenameFrom, char *filenameTo)
 {
-    printf("Reciving file on Unix domain socket '%s'\n", sock_path);
-
-    // Create Socket
-    int sockfd = socket(AF_UNIX, type, 0);
-    if (sockfd < 0)
-    {
-        printf("ERROR opening socket\n");
-        exit(1);
-    }
-
-    struct sockaddr_un serveraddr;
-    memset(&serveraddr, 0, sizeof(serveraddr));
-    serveraddr.sun_family = AF_UNIX;
-    strncpy(serveraddr.sun_path, sock_path, sizeof(serveraddr.sun_path) - 1);
-
-    // Bind Socket
-    if (bind(sockfd, (struct sockaddr *)&serveraddr, sizeof(serveraddr)) < 0)
-    {
-        printf("ERROR on binding\n");
-        exit(1);
-    }
-
-    struct pollfd fds[2];
-    fds[0].fd = sockfd;
-    fds[0].events = POLLIN;
-
-    int newsockfd;
-    if (type == SOCK_STREAM)
-    {
-        listen(sockfd, 1);
-        printf("Listening on Unix domain socket '%s'\n", sock_path);
-
-        newsockfd = accept(sockfd, NULL, NULL);
-        if (newsockfd < 0)
-        {
-            printf("ERROR on accept\n");
-            exit(1);
-        }
-        fds[1].fd = newsockfd;
-        fds[1].events = POLLIN;
-        printf("Accepted connection \n");
-    }
-
-    // Recive File
-    char buffer[BUFFER_SIZE] = {0};
-    FILE *fp = fopen("recived.txt", "wb");
-    while (1)
-    {
-        int poll_status = poll(fds, 2, 2000); // 2 seconds timeout
-        if (poll_status == 0)
-        {
-            printf("Timeout\n");
-            break;
-        }
-
-        int recived;
-        if (type == SOCK_STREAM)
-        {
-            recived = recv(newsockfd, buffer, BUFFER_SIZE, 0);
-        }
-        else if (type == SOCK_DGRAM)
-        {
-            recived = recvfrom(sockfd, buffer, BUFFER_SIZE, 0, NULL, NULL);
-        }
-
-        if (recived < 0)
-        {
-            printf("ERROR reciving file\n");
-            exit(1);
-        }
-        if (recived == 0)
-        {
-            break;
-        }
-
-        // Write to file
-        fwrite(buffer, recived, 1, fp);
-        bzero(buffer, BUFFER_SIZE);
-    }
-
-    fclose(fp);
-    if (type == SOCK_STREAM)
-        close(newsockfd);
-    close(sockfd);
-    unlink(sock_path);
-
-    printf("File received successfully\n");
-}
-
-
-void send_file_uds(char *sock_path, char *filename, int type,int quiet)
-{
-    if(!quiet)
-        printf("Sending file '%s' to Unix domain socket '%s'\n", filename, sock_path);
-
-    // Open File
-    int filesize = 0;
-    FILE *fp = fopen(filename, "rb");
-    if (!fp)
-    {
-        printf("Error opening file '%s'\n", filename);
-        return;
-    }
-    fseek(fp, 0L, SEEK_END); // seek to end of file
-    filesize = ftell(fp);    // get current file pointer
-    fseek(fp, 0L, SEEK_SET); // seek back to beginning of file
-
-    // Create Socket
-    int sockfd = socket(AF_UNIX, type, 0);
-    if (sockfd < 0)
-    {
-        printf("ERROR opening socket\n");
-        exit(1);
-    }
-
-    struct sockaddr_un serveraddr;
-    memset(&serveraddr, 0, sizeof(serveraddr));
-    serveraddr.sun_family = AF_UNIX;
-    strncpy(serveraddr.sun_path, sock_path, sizeof(serveraddr.sun_path) - 1);
-
-    // Connect Socket
-    if (connect(sockfd, (struct sockaddr *)&serveraddr, sizeof(serveraddr)) < 0)
-    {
-        printf("ERROR connecting\n");
-        exit(1);
-    }
-    if(!quiet)
-        printf("Connected to Unix domain socket '%s'\n", sock_path);
-
-    // Send File
-    char buffer[BUFFER_SIZE] = {0};
-    int sent_bytes = 0;
-    int bytes_read = 0;
-    while (sent_bytes < filesize)
-    {
-        bytes_read = min(BUFFER_SIZE, filesize - sent_bytes); // Read at most BUFFER_SIZE bytes
-        fread(buffer, 1, bytes_read, fp);
-        int bytes_sent = send(sockfd, buffer, bytes_read, 0);
-        if (bytes_sent < 0)
-        {
-            printf("ERROR send() failed (FILE)\n");
-            exit(1);
-        }
-        sent_bytes += bytes_sent;
-        bzero(buffer, BUFFER_SIZE);
-    }
-
-    fclose(fp);
-    close(sockfd);
-
-    if(!quiet)
-        printf("File '%s' sent successfully\n", filename);
-}
-
-void copy_file_mmap(char* filenameFrom, char* filenameTo){
     // Open file
     int fdFrom = open(filenameFrom, O_RDONLY, S_IRUSR | S_IWUSR);
     if (fdFrom < 0)
@@ -498,53 +383,64 @@ void copy_file_mmap(char* filenameFrom, char* filenameTo){
 
     // Copy file
     memcpy(mapTo, mapFrom, statFrom.st_size);
-
 }
 
-void copy_file_pipe(char *filenameFrom, char *filenameTo) {
+void copy_file_pipe(char *filenameFrom, char *filenameTo)
+{
     // Open file
     int fdFrom = open(filenameFrom, O_RDONLY, S_IRUSR | S_IWUSR);
-    if (fdFrom < 0) {
+    if (fdFrom < 0)
+    {
         printf("ERROR opening file\n");
         exit(1);
     }
 
     // Create file
     int fdTo = open(filenameTo, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
-    if (fdTo < 0) {
+    if (fdTo < 0)
+    {
         printf("ERROR opening file\n");
         exit(1);
     }
-    
 
     int pipefd[2]; // Create pipe
-    if(pipe(pipefd) < 0) {
+    if (pipe(pipefd) < 0)
+    {
         printf("ERROR pipe\n");
         exit(1);
     }
     pid_t pid = fork();
 
-    if(pid < 0){
+    if (pid < 0)
+    {
         printf("ERROR fork\n");
         exit(1);
-    }else if(pid == 0){ // Child
+    }
+    else if (pid == 0)
+    {                     // Child
         close(pipefd[0]); // Close read end
-        char buffer[BUFFER_SIZE]; 
+        char buffer[BUFFER_SIZE];
         int bytes_read = 0;
-        while((bytes_read = read(fdFrom, buffer, BUFFER_SIZE)) > 0){ // Read from file to buffer
-            if(write(pipefd[1], buffer, bytes_read) < 0){ // Write to pipe
+        while ((bytes_read = read(fdFrom, buffer, BUFFER_SIZE)) > 0)
+        { // Read from file to buffer
+            if (write(pipefd[1], buffer, bytes_read) < 0)
+            { // Write to pipe
                 printf("ERROR write\n");
                 exit(1);
             }
         }
         close(pipefd[1]);
         exit(0);
-    }else{
+    }
+    else
+    {
         close(pipefd[1]);
         char buffer[BUFFER_SIZE];
         int bytes_read = 0;
-        while((bytes_read = read(pipefd[0], buffer, BUFFER_SIZE)) > 0){  // Read from pipe
-            if(write(fdTo, buffer, bytes_read) < 0){ // Write to file
+        while ((bytes_read = read(pipefd[0], buffer, BUFFER_SIZE)) > 0)
+        { // Read from pipe
+            if (write(fdTo, buffer, bytes_read) < 0)
+            { // Write to file
                 printf("ERROR write\n");
                 exit(1);
             }
