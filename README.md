@@ -44,28 +44,18 @@ For the file transfer in a different ways:
 
 Only file transfer will be in the given way. All other communications between server and client will be in chat using tcp.
 First 6 options will generate 100mb file automatically in the project folder. 2 last options will need path to an existing file in <param>, if you will write "default" instead, it will be generated as in other methods.
-All generated files will be deleted after the test.
+All generated and recieved files will be deleted after the test.
 
-> When sending file via udp or uds dgram time shown will not show the real time it took to transfer the file it because it waiting 2 seconds timeout to finish the file transfer from the server side. So real time will be approximately (given - 2000).
+> When sending via udp protocol, may happen that packets will lost. If it happens recieve function will exit efter 2 seconds timeout. It will still prints the time it took but with +2 seconds of timeout.
 
 ```sh
    ./stnc -c <ip> <port> -p <type> <param>
    ```
-Time results will be printed on Client side.
+Time results will be printed on Server side.
 
-Add -q flag for quite run (Only time result will be printed).
+Add -q flag for quite run (Only time result will be printed). 
 
 ## Screenshots
-![image](https://user-images.githubusercontent.com/70432147/236688965-f214716d-f9f5-40ff-a159-8a0d77e59254.png)
-![image](https://user-images.githubusercontent.com/70432147/236689005-82417f31-ba57-461f-897e-6ff77a4abf3f.png)
-![image](https://user-images.githubusercontent.com/70432147/236689023-9baf0f81-6fbf-414b-a4b1-96ec6ac54b8d.png)
-![image](https://user-images.githubusercontent.com/70432147/236689050-ddbf0b9e-aba4-4339-ae12-77e1d7f96313.png)
-![image](https://user-images.githubusercontent.com/70432147/236689182-bcd89702-3a87-4fee-b257-5c481eae0ba3.png)
-![image](https://user-images.githubusercontent.com/70432147/236689222-126ec1d5-69f7-4001-a433-9b2272a036ee.png)
-![image](https://user-images.githubusercontent.com/70432147/236689240-97a431e8-06b1-47a3-9497-d5928cb45675.png)
-![image](https://user-images.githubusercontent.com/70432147/236694647-d60cd108-0d9c-4839-8529-b82a2781ad46.png)
-![image](https://user-images.githubusercontent.com/70432147/236694659-99f77d5e-df7e-4a7a-ba5d-37e563a1b693.png)
-![image](https://user-images.githubusercontent.com/70432147/236694670-812d6f39-9a94-420e-96a6-a464fcf5fdc6.png)
 
 
 
