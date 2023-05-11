@@ -482,7 +482,7 @@ void run_server(char *port)
                 uint32_t checksum = 0;
                 struct timeval start, end;
                 if (!quiet)
-                    printf("Test mode\n");
+                    printf("---------PERFORMANCE MODE---------\n");
                 bzero(messageBuffer, BUFFER_SIZE_MESSAGE);
 
                 // recieve file size
@@ -494,7 +494,7 @@ void run_server(char *port)
                 }
                 fileSize = atoi(messageBuffer);
                 if (!quiet)
-                    printf("File size: %d\n", fileSize);
+                    printf("File size will be: %d\n", fileSize);
                 bzero(messageBuffer, BUFFER_SIZE_MESSAGE);
 
                 // recieve checksum
@@ -508,7 +508,7 @@ void run_server(char *port)
                 sscanf(messageBuffer, "%u", &checksum);
 
                 if (!quiet)
-                    printf("Checksum: 0x%08x\n", checksum);
+                    printf("Checksum will be: 0x%08x\n", checksum);
                 bzero(messageBuffer, BUFFER_SIZE_MESSAGE);
 
                 // recieve timestart
@@ -582,6 +582,9 @@ void run_server(char *port)
                     }
                     copy_file_pipe(messageBuffer, "recived.txt");
                 }
+
+                gettimeofday(&end, NULL);
+
                 u_int32_t recieved_file_checksum = generate_checksum("recived.txt", quiet);
                 if (recieved_file_checksum == checksum && !quiet)
                 {
@@ -590,15 +593,16 @@ void run_server(char *port)
                 else if (!quiet)
                 {
                     printf("Checksums are not equal\n");
-                    if(recievedSize != fileSize){
+                    if (recievedSize != fileSize)
+                    {
                         printf("File sizes are not equal packets were lost\n");
                     }
                 }
-                gettimeofday(&end, NULL);
+
                 if (!quiet)
                 {
                     printf("End time: %ld.%06ld\n", end.tv_sec, end.tv_usec);
-                    printf("Time difference: ");
+                    printf("Time took: ");
                 }
 
                 print_time_diff(&start, &end);
