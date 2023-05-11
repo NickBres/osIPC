@@ -30,8 +30,6 @@ int recive_file(char* port,int domain, int type, int protocol,int filesize,int q
 void copy_file_mmap(char* filenameFrom, char* filenameTo);
 void copy_file_pipe(char* filenameFrom, char* filenameTo);
 int min(int a, int b);
-int get_file_size(char* filename);
-int open_file_read(char *filename, FILE **fp);
-int open_file_write(char *filename, FILE **fp);
+int file_size(char* filename);
 
 #endif

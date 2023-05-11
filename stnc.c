@@ -155,7 +155,7 @@ void run_client(char *ip, char *port)
     }
     if (connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
     {
-        printf("ERROR connecting\n");
+        printf("ERROR connecting to %s:%s\n", ip, port);
         exit(1);
     }
 
@@ -185,26 +185,17 @@ void run_client(char *ip, char *port)
             char new_port[10];
             sprintf(new_port, "%d", atoi(port) + 1);
 
-            // Send file
-            int bytesSent = send(sockfd, "test", 4, 0); // send test command
-            if (bytesSent < 0)
-            {
-                printf("ERROR send() failed\n");
-                exit(1);
-            }
-            sleep(0.05);
-
             // send filesize
             int filesize = get_file_size(filename);
             char filesize_str[20];
             sprintf(filesize_str, "%d", filesize);
-            bytesSent = send(sockfd, filesize_str, strlen(filesize_str), 0);
+            int bytesSent = send(sockfd, filesize_str, strlen(filesize_str), 0);
             if (bytesSent < 0)
             {
                 printf("ERROR send() failed\n");
                 exit(1);
             }
-            sleep(0.05);
+            sleep(0.1);
 
             // send checksum
             uint32_t checksum = generate_checksum(filename, quiet);
@@ -216,7 +207,7 @@ void run_client(char *ip, char *port)
                 printf("ERROR send() failed\n");
                 exit(1);
             }
-            sleep(0.05);
+            sleep(0.1);
 
             struct timeval start;
             gettimeofday(&start, NULL);
@@ -230,7 +221,7 @@ void run_client(char *ip, char *port)
                 printf("ERROR send() failed\n");
                 exit(1);
             }
-            sleep(0.05);
+            sleep(0.1);
 
             if (tcp && ipv4)
             {
@@ -286,7 +277,7 @@ void run_client(char *ip, char *port)
                 exit(1);
             }
 
-            sleep(0.5); // make sure server is ready
+            sleep(0.1); // make sure server is ready
 
             if (tcp && ipv4)
             {
@@ -306,12 +297,12 @@ void run_client(char *ip, char *port)
             }
             else if (uds && dgram)
             {
-                // send_file_uds(new_port, filename, SOCK_DGRAM,quiet);
+                sleep(0.1);
                 send_file(0, new_port, filename, AF_UNIX, SOCK_DGRAM, 0, quiet);
             }
             else if (uds && stream)
             {
-                // send_file_uds(new_port, filename, SOCK_STREAM,quiet);
+                sleep(0.1);
                 send_file(0, new_port, filename, AF_UNIX, SOCK_STREAM, 0, quiet);
             }
             else if (isMmap || isPipe)
@@ -322,6 +313,7 @@ void run_client(char *ip, char *port)
                     printf("ERROR send() failed\n");
                     exit(1);
                 }
+                sleep(2); // make sure server is finished before deleting file
             }
             if (deleteFile)
                 delete_file(filename, quiet);
@@ -404,214 +396,210 @@ void run_server(char *port)
         printf("ERROR on binding\n");
         exit(1);
     }
-
-    // Listen for connections
-    if (listen(sockfd, 1) < 0)
-    {
-        printf("ERROR on listen\n");
-        exit(1);
-    }
-
-    // Accept connection
-    struct sockaddr_in cli_addr;
-    socklen_t clilen = sizeof(cli_addr);
-    int clientSock = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
-    if (clientSock < 0)
-    {
-        printf("ERROR on accept\n");
-        exit(1);
-    }
-
-    if (!quiet)
-        printf("Client connected\n");
-
-    // Create poll
-    struct pollfd fds[2] = {
-        {.fd = STDIN_FILENO, .events = POLLIN},
-        {.fd = clientSock, .events = POLLIN}};
-
-    char messageBuffer[BUFFER_SIZE_MESSAGE];
-
     while (1)
     {
-        int pllResult = poll(fds, 2, -1);
-        if (pllResult < 0)
+
+        // Listen for connections
+        if (listen(sockfd, 1) < 0)
         {
-            printf("ERROR poll() failed\n");
+            printf("ERROR on listen\n");
             exit(1);
         }
-        if (fds[0].revents & POLLIN) // check if user input
+
+        // Accept connection
+        struct sockaddr_in cli_addr;
+        socklen_t clilen = sizeof(cli_addr);
+        int clientSock = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
+        if (clientSock < 0)
         {
-            // Read user input
-            int bytesRead = read(STDIN_FILENO, messageBuffer, BUFFER_SIZE_MESSAGE);
-            if (bytesRead < 0)
-            {
-                printf("ERROR read() failed\n");
-                exit(1);
-            }
-            messageBuffer[bytesRead] = '\0';
-            if (send(clientSock, messageBuffer, bytesRead, 0) < 0)
-            {
-                printf("ERROR send() failed\n");
-                exit(1);
-            }
-            bzero(messageBuffer, BUFFER_SIZE_MESSAGE);
+            printf("ERROR on accept\n");
+            exit(1);
         }
-        if (fds[1].revents & POLLIN)
+
+        if (!quiet)
+            printf("Client connected\n");
+
+        // Create poll
+        struct pollfd fds[2] = {
+            {.fd = STDIN_FILENO, .events = POLLIN},
+            {.fd = clientSock, .events = POLLIN}};
+
+        char messageBuffer[BUFFER_SIZE_MESSAGE];
+
+        while (1)
         {
-            // Read message from client
-            int bytesRecv = recv(clientSock, messageBuffer, BUFFER_SIZE_MESSAGE - 1, 0);
-            if (bytesRecv < 0)
+            int pllResult = poll(fds, 2, -1);
+            if (pllResult < 0)
             {
-                printf("ERROR recv() failed\n");
+                printf("ERROR poll() failed\n");
                 exit(1);
             }
-            if (bytesRecv == 0)
+            if (fds[0].revents & POLLIN) // check if user input
             {
-                if (!quiet)
-                    printf("Client disconnected\n");
-                exit(1);
+                // Read user input
+                int bytesRead = read(STDIN_FILENO, messageBuffer, BUFFER_SIZE_MESSAGE);
+                if (bytesRead < 0)
+                {
+                    printf("ERROR read() failed\n");
+                    exit(1);
+                }
+                messageBuffer[bytesRead] = '\0';
+                if (send(clientSock, messageBuffer, bytesRead, 0) < 0)
+                {
+                    printf("ERROR send() failed\n");
+                    exit(1);
+                }
+                bzero(messageBuffer, BUFFER_SIZE_MESSAGE);
             }
-            messageBuffer[bytesRecv] = '\0';
-            if (!quiet)
-                printf("Client: %s \n", messageBuffer);
-            if (!strcmp(messageBuffer, "test"))
+            if (fds[1].revents & POLLIN)
             {
-                int fileSize = 0;
-                int recievedSize = 0;
-                uint32_t checksum = 0;
-                struct timeval start, end;
-                if (!quiet)
-                    printf("---------PERFORMANCE MODE---------\n");
-                bzero(messageBuffer, BUFFER_SIZE_MESSAGE);
-
-                // recieve file size
-                int bytesRecv = recv(clientSock, messageBuffer, 20, 0);
-                if (bytesRecv <= 0)
+                // Read message from client
+                int bytesRecv = recv(clientSock, messageBuffer, BUFFER_SIZE_MESSAGE - 1, 0);
+                if (bytesRecv < 0)
                 {
                     printf("ERROR recv() failed\n");
                     exit(1);
                 }
-                fileSize = atoi(messageBuffer);
-                if (!quiet)
-                    printf("File size will be: %d\n", fileSize);
-                bzero(messageBuffer, BUFFER_SIZE_MESSAGE);
-
-                // recieve checksum
-                bytesRecv = recv(clientSock, messageBuffer, 20, 0);
-                if (bytesRecv <= 0)
+                if (bytesRecv == 0)
                 {
-                    printf("ERROR recv() failed\n");
-                    exit(1);
-                }
-                messageBuffer[bytesRecv] = '\0';
-                sscanf(messageBuffer, "%u", &checksum);
-
-                if (!quiet)
-                    printf("Checksum will be: 0x%08x\n", checksum);
-                bzero(messageBuffer, BUFFER_SIZE_MESSAGE);
-
-                // recieve timestart
-                bytesRecv = recv(clientSock, messageBuffer, 20, 0);
-                if (bytesRecv <= 0)
-                {
-                    printf("ERROR recv() failed\n");
-                    exit(1);
-                }
-                messageBuffer[bytesRecv] = '\0';
-                sscanf(messageBuffer, "%ld.%06ld", &start.tv_sec, &start.tv_usec);
-                if (!quiet)
-                    printf("Start time: %ld.%06ld\n", start.tv_sec, start.tv_usec);
-                bzero(messageBuffer, BUFFER_SIZE_MESSAGE);
-
-                // recieve test type
-                bytesRecv = recv(clientSock, messageBuffer, 20, 0);
-                if (bytesRecv <= 0)
-                {
-                    printf("ERROR recv() failed\n");
-                    exit(1);
+                    if (!quiet)
+                        printf("Client disconnected\n");
+                    break;
                 }
                 messageBuffer[bytesRecv] = '\0';
                 if (!quiet)
-                    printf("Test: %s\n", messageBuffer);
+                    printf("Client: %s \n", messageBuffer);
+                if (test)
+                {
+                    int fileSize = 0;
+                    int recievedSize = 0;
+                    uint32_t checksum = 0;
+                    struct timeval start, end;
+                    if (!quiet)
+                        printf("---------PERFORMANCE MODE---------\n");
 
-                char *new_port[10];
-                sprintf(new_port, "%d", atoi(port) + 1);
+                    // recieve file size
+                    fileSize = atoi(messageBuffer);
+                    if (!quiet)
+                        printf("File size will be: %d\n", fileSize);
+                    bzero(messageBuffer, BUFFER_SIZE_MESSAGE);
 
-                if (!strcmp(messageBuffer, "ipv4 tcp"))
-                {
-                    recievedSize = recive_file(new_port, AF_INET, SOCK_STREAM, IPPROTO_TCP, fileSize, quiet);
-                }
-                else if (!strcmp(messageBuffer, "ipv4 udp"))
-                {
-                    recievedSize = recive_file(new_port, AF_INET, SOCK_DGRAM, 0, fileSize, quiet);
-                }
-                else if (!strcmp(messageBuffer, "ipv6 tcp"))
-                {
-                    recievedSize = recive_file(new_port, AF_INET6, SOCK_STREAM, IPPROTO_TCP, fileSize, quiet);
-                }
-                else if (!strcmp(messageBuffer, "ipv6 udp"))
-                {
-                    recievedSize = recive_file(new_port, AF_INET6, SOCK_DGRAM, 0, fileSize, quiet);
-                }
-                else if (!strcmp(messageBuffer, "uds dgram"))
-                {
-                    recievedSize = recive_file(new_port, AF_UNIX, SOCK_DGRAM, 0, fileSize, quiet);
-                }
-                else if (!strcmp(messageBuffer, "uds stream"))
-                {
-                    recievedSize = recive_file(new_port, AF_UNIX, SOCK_STREAM, 0, fileSize, quiet);
-                }
-                else if (!strcmp(messageBuffer, "mmap"))
-                {
-                    bytesRecv = recv(clientSock, messageBuffer, BUFFER_SIZE_MESSAGE - 1, 0); // recive file name
-                    if (bytesRecv < 0)
+                    // recieve checksum
+                    bytesRecv = recv(clientSock, messageBuffer, 20, 0);
+                    if (bytesRecv <= 0)
                     {
                         printf("ERROR recv() failed\n");
                         exit(1);
                     }
-                    copy_file_mmap(messageBuffer, "recived.txt");
-                }
-                else if (!strcmp(messageBuffer, "pipe"))
-                {
-                    bytesRecv = recv(clientSock, messageBuffer, BUFFER_SIZE_MESSAGE - 1, 0); // recive file name
-                    if (bytesRecv < 0)
+                    messageBuffer[bytesRecv] = '\0';
+                    sscanf(messageBuffer, "%u", &checksum);
+
+                    if (!quiet)
+                        printf("Checksum will be: 0x%08x\n", checksum);
+                    bzero(messageBuffer, BUFFER_SIZE_MESSAGE);
+
+                    // recieve timestart
+                    bytesRecv = recv(clientSock, messageBuffer, 20, 0);
+                    if (bytesRecv <= 0)
                     {
                         printf("ERROR recv() failed\n");
                         exit(1);
                     }
-                    copy_file_pipe(messageBuffer, "recived.txt");
-                }
+                    messageBuffer[bytesRecv] = '\0';
+                    sscanf(messageBuffer, "%ld.%06ld", &start.tv_sec, &start.tv_usec);
+                    if (!quiet)
+                        printf("Start time: %ld.%06ld\n", start.tv_sec, start.tv_usec);
+                    bzero(messageBuffer, BUFFER_SIZE_MESSAGE);
 
-                gettimeofday(&end, NULL);
-
-                u_int32_t recieved_file_checksum = generate_checksum("recived.txt", quiet);
-                if (recieved_file_checksum == checksum && !quiet)
-                {
-                    printf("Checksums are equal\n");
-                }
-                else if (!quiet)
-                {
-                    printf("Checksums are not equal\n");
-                    if (recievedSize != fileSize)
+                    // recieve test type
+                    bytesRecv = recv(clientSock, messageBuffer, 20, 0);
+                    if (bytesRecv <= 0)
                     {
-                        printf("File sizes are not equal packets were lost\n");
+                        printf("ERROR recv() failed\n");
+                        exit(1);
                     }
+                    messageBuffer[bytesRecv] = '\0';
+                    if (!quiet)
+                        printf("Test: %s\n", messageBuffer);
+
+                    char *new_port[10];
+                    sprintf(new_port, "%d", atoi(port) + 1);
+
+                    if (!strcmp(messageBuffer, "ipv4 tcp"))
+                    {
+                        recievedSize = recive_file(new_port, AF_INET, SOCK_STREAM, IPPROTO_TCP, fileSize, quiet);
+                    }
+                    else if (!strcmp(messageBuffer, "ipv4 udp"))
+                    {
+                        recievedSize = recive_file(new_port, AF_INET, SOCK_DGRAM, 0, fileSize, quiet);
+                    }
+                    else if (!strcmp(messageBuffer, "ipv6 tcp"))
+                    {
+                        recievedSize = recive_file(new_port, AF_INET6, SOCK_STREAM, IPPROTO_TCP, fileSize, quiet);
+                    }
+                    else if (!strcmp(messageBuffer, "ipv6 udp"))
+                    {
+                        recievedSize = recive_file(new_port, AF_INET6, SOCK_DGRAM, 0, fileSize, quiet);
+                    }
+                    else if (!strcmp(messageBuffer, "uds dgram"))
+                    {
+                        recievedSize = recive_file(new_port, AF_UNIX, SOCK_DGRAM, 0, fileSize, quiet);
+                    }
+                    else if (!strcmp(messageBuffer, "uds stream"))
+                    {
+                        recievedSize = recive_file(new_port, AF_UNIX, SOCK_STREAM, 0, fileSize, quiet);
+                    }
+                    else if (!strcmp(messageBuffer, "mmap"))
+                    {
+                        bytesRecv = recv(clientSock, messageBuffer, BUFFER_SIZE_MESSAGE - 1, 0); // recive file name
+                        if (bytesRecv < 0)
+                        {
+                            printf("ERROR recv() failed\n");
+                            exit(1);
+                        }
+                        copy_file_mmap(messageBuffer, "recived.txt");
+                    }
+                    else if (!strcmp(messageBuffer, "pipe"))
+                    {
+                        bytesRecv = recv(clientSock, messageBuffer, BUFFER_SIZE_MESSAGE - 1, 0); // recive file name
+                        if (bytesRecv < 0)
+                        {
+                            printf("ERROR recv() failed\n");
+                            exit(1);
+                        }
+                        copy_file_pipe(messageBuffer, "recived.txt");
+                    }
+
+                    gettimeofday(&end, NULL);
+
+                    u_int32_t recieved_file_checksum = generate_checksum("recived.txt", quiet);
+                    if (recieved_file_checksum == checksum && !quiet)
+                    {
+                        printf("Checksums are equal\n");
+                    }
+                    else if (!quiet)
+                    {
+                        printf("Checksums are not equal\n");
+                        if (recievedSize != fileSize)
+                        {
+                            printf("File sizes are not equal packets were lost\n");
+                        }
+                    }
+
+                    if (!quiet)
+                    {
+                        printf("End time: %ld.%06ld\n", end.tv_sec, end.tv_usec);
+                        printf("Time took: ");
+                    }
+
+                    print_time_diff(&start, &end);
+
+                    delete_file("recived.txt", quiet);
                 }
-
-                if (!quiet)
-                {
-                    printf("End time: %ld.%06ld\n", end.tv_sec, end.tv_usec);
-                    printf("Time took: ");
-                }
-
-                print_time_diff(&start, &end);
-
-                delete_file("recived.txt", quiet);
+                bzero(messageBuffer, BUFFER_SIZE_MESSAGE);
             }
-            bzero(messageBuffer, BUFFER_SIZE_MESSAGE);
         }
+        close(clientSock);
     }
     close(sockfd);
-    close(clientSock);
 }

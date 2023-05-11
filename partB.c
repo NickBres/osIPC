@@ -2,9 +2,10 @@
 
 void generate_file(char *filename, long size_in_bytes, int quiet)
 {
-    FILE *fp;
-    if (open_file_write(filename, &fp) < 0)
+    FILE *fp = fopen(filename, "w");
+    if (fp == NULL)
     {
+        printf("Error opening file '%s'\n", filename);
         return;
     }
 
@@ -30,9 +31,10 @@ void generate_file(char *filename, long size_in_bytes, int quiet)
 
 uint32_t generate_checksum(char *filename, int quiet)
 {
-    FILE *fp;
-    if (open_file_read(filename, &fp) < 0)
+    FILE *fp = fopen(filename, "rb");
+    if (fp == NULL)
     {
+        printf("Error opening file '%s'\n", filename);
         return -1;
     }
 
@@ -81,34 +83,11 @@ void print_time_diff(struct timeval *start, struct timeval *end)
     printf("%ld\n", milliseconds);
 };
 
-int open_file_read(char *filename, FILE **fp)
+int file_size(char *filename)
 {
-    *fp = fopen(filename, "rb");
-    if (!*fp)
-    {
-        printf("Error opening file '%s'\n", filename);
-        return -1;
-    }
-    int filesize = 0;
-    fseek(*fp, 0L, SEEK_END); // seek to end of file
-    filesize = ftell(*fp);    // get current file pointer
-    fseek(*fp, 0L, SEEK_SET); // seek back to beginning of file
-    return filesize;
-}
-
-int open_file_write(char *filename, FILE **fp)
-{
-    *fp = fopen(filename, "wb");
-    if (!*fp)
-    {
-        printf("Error opening file '%s'\n", filename);
-        return -1;
-    }
-    int filesize = 0;
-    fseek(*fp, 0L, SEEK_END); // seek to end of file
-    filesize = ftell(*fp);    // get current file pointer
-    fseek(*fp, 0L, SEEK_SET); // seek back to beginning of file
-    return filesize;
+    struct stat st;
+    stat(filename, &st);
+    return st.st_size;
 }
 
 void send_file(char *ip, char *port, char *filename, int domain, int type, int protocol, int quiet)
@@ -116,13 +95,13 @@ void send_file(char *ip, char *port, char *filename, int domain, int type, int p
     if (!quiet)
         printf("Sending file '%s' to %s:%s\n", filename, ip, port);
     // Open File
-    FILE *fp;
-    int filesize = open_file_read(filename, &fp);
-    if (filesize < 0)
+    FILE *fp = fopen(filename, "rb");
+    if (fp == NULL)
     {
-        printf("Error opening file\n");
-        return;
+        printf("ERROR opening file\n");
+        exit(1);
     }
+    int filesize = file_size(filename);
 
     // Create Socket
     int sockfd = socket(domain, type, protocol);
@@ -350,49 +329,61 @@ int recive_file(char *port, int domain, int type, int protocol,int filesize,int 
 
 void copy_file_mmap(char *filenameFrom, char *filenameTo)
 {
-    // Open file
-    int fdFrom = open(filenameFrom, O_RDONLY, S_IRUSR | S_IWUSR);
+     // Open file
+    int fdFrom = open(filenameFrom, O_RDONLY);
     if (fdFrom < 0)
     {
-        printf("ERROR opening file\n");
+        printf("ERROR opening file from\n");
         exit(1);
     }
-    struct stat statFrom; // Get file size
-    if (fstat(fdFrom, &statFrom) < 0)
-    {
-        printf("ERROR fstat\n");
-        exit(1);
-    }
+    int fileSize = file_size(filenameFrom);
+    printf("File size: %d\n", fileSize);
 
     // Create file
     int fdTo = open(filenameTo, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
     if (fdTo < 0)
     {
-        printf("ERROR opening file\n");
-        exit(1);
-    }
-    if (ftruncate(fdTo, statFrom.st_size) < 0) // Set size of file
-    {
-        printf("ERROR ftruncate\n");
+        printf("ERROR opening file to\n");
         exit(1);
     }
 
-    // Map files to memory
-    char *mapFrom = mmap(NULL, statFrom.st_size, PROT_READ, MAP_SHARED, fdFrom, 0);
-    if (mapFrom == MAP_FAILED)
-    {
-        printf("ERROR mmap\n");
+    if(ftruncate(fdTo, fileSize) < 0){
+        printf("ERROR truncating file\n");
         exit(1);
     }
-    char *mapTo = mmap(NULL, statFrom.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, fdTo, 0);
+
+    // Determine alignment requirements
+    long page_size = sysconf(_SC_PAGE_SIZE);
+    off_t offset = 0;
+    off_t map_length = (fileSize + page_size - 1) / page_size * page_size;
+
+    // Map files to memory
+    char *mapFrom = mmap(NULL, map_length, PROT_READ, MAP_SHARED, fdFrom, offset);
+    if (mapFrom == MAP_FAILED)
+    {
+        printf("ERROR mmap from\n");
+        exit(1);
+    }
+    char *mapTo = mmap(NULL, map_length, PROT_READ | PROT_WRITE, MAP_SHARED, fdTo, offset);
     if (mapTo == MAP_FAILED)
     {
-        printf("ERROR mmap\n");
+        printf("ERROR mmap to\n");
         exit(1);
     }
 
     // Copy file
-    memcpy(mapTo, mapFrom, statFrom.st_size);
+    memcpy(mapTo, mapFrom, fileSize);
+
+    // Unmap files
+    if (munmap(mapFrom, fileSize) < 0 || munmap(mapTo, fileSize) < 0)
+    {
+        printf("ERROR munmap\n");
+        exit(1);
+    }
+
+    // Close files
+    close(fdFrom);
+    close(fdTo);
 }
 
 void copy_file_pipe(char *filenameFrom, char *filenameTo)
@@ -401,7 +392,7 @@ void copy_file_pipe(char *filenameFrom, char *filenameTo)
     int fdFrom = open(filenameFrom, O_RDONLY, S_IRUSR | S_IWUSR);
     if (fdFrom < 0)
     {
-        printf("ERROR opening file\n");
+        printf("ERROR opening file from\n");
         exit(1);
     }
 
@@ -409,7 +400,7 @@ void copy_file_pipe(char *filenameFrom, char *filenameTo)
     int fdTo = open(filenameTo, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
     if (fdTo < 0)
     {
-        printf("ERROR opening file\n");
+        printf("ERROR opening file to\n");
         exit(1);
     }
 
