@@ -212,7 +212,7 @@ void send_file(char *ip, char *port, char *filename, int domain, int type, int p
     close(sockfd);
 }
 
-void recive_file(char *port, int domain, int type, int protocol,int filesize,int quiet)
+int recive_file(char *port, int domain, int type, int protocol,int filesize,int quiet)
 {
     if(!quiet)
         printf("Reciving file on port %s\n", port);
@@ -273,7 +273,8 @@ void recive_file(char *port, int domain, int type, int protocol,int filesize,int
         exit(1);
     }
 
-
+    struct pollfd fds[2];
+    fds[0] = (struct pollfd){.fd = sockfd, .events = POLLIN};
     int newsockfd;
     if (type == SOCK_STREAM)
     {
@@ -290,6 +291,8 @@ void recive_file(char *port, int domain, int type, int protocol,int filesize,int
         }
         if(!quiet)
             printf("Accepted connection \n");
+        
+        fds[1] = (struct pollfd){.fd = newsockfd, .events = POLLIN};
     }
 
     // Recive File
@@ -298,8 +301,18 @@ void recive_file(char *port, int domain, int type, int protocol,int filesize,int
     int size = 0;
     while (size < filesize)
     {
+        int pollRes = poll(fds, 2, 2000);
+        if(pollRes == 0){
+            if(!quiet)
+                printf("ERROR: Timeout\n");
+            break;
+        }
+        if (pollRes < 0)
+        {
+            printf("ERROR: poll() failed\n");
+            exit(1);
+        }
 
-        
         int recived;
         if (type == SOCK_STREAM)
         {
@@ -332,6 +345,7 @@ void recive_file(char *port, int domain, int type, int protocol,int filesize,int
     {
         unlink(port);
     }
+    return size;
 }
 
 void copy_file_mmap(char *filenameFrom, char *filenameTo)

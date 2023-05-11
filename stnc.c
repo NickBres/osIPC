@@ -192,7 +192,7 @@ void run_client(char *ip, char *port)
                 printf("ERROR send() failed\n");
                 exit(1);
             }
-            sleep(0.01);
+            sleep(0.05);
 
             // send filesize
             int filesize = get_file_size(filename);
@@ -204,7 +204,7 @@ void run_client(char *ip, char *port)
                 printf("ERROR send() failed\n");
                 exit(1);
             }
-            sleep(0.01);
+            sleep(0.05);
 
             // send checksum
             uint32_t checksum = generate_checksum(filename, quiet);
@@ -216,7 +216,7 @@ void run_client(char *ip, char *port)
                 printf("ERROR send() failed\n");
                 exit(1);
             }
-            sleep(0.01);
+            sleep(0.05);
 
             struct timeval start;
             gettimeofday(&start, NULL);
@@ -230,7 +230,7 @@ void run_client(char *ip, char *port)
                 printf("ERROR send() failed\n");
                 exit(1);
             }
-            sleep(0.01);
+            sleep(0.05);
 
             if (tcp && ipv4)
             {
@@ -286,7 +286,7 @@ void run_client(char *ip, char *port)
                 exit(1);
             }
 
-            sleep(0.1); // make sure server is ready
+            sleep(0.5); // make sure server is ready
 
             if (tcp && ipv4)
             {
@@ -478,6 +478,7 @@ void run_server(char *port)
             if (!strcmp(messageBuffer, "test"))
             {
                 int fileSize = 0;
+                int recievedSize = 0;
                 uint32_t checksum = 0;
                 struct timeval start, end;
                 if (!quiet)
@@ -539,27 +540,27 @@ void run_server(char *port)
 
                 if (!strcmp(messageBuffer, "ipv4 tcp"))
                 {
-                    recive_file(new_port, AF_INET, SOCK_STREAM, IPPROTO_TCP, fileSize, quiet);
+                    recievedSize = recive_file(new_port, AF_INET, SOCK_STREAM, IPPROTO_TCP, fileSize, quiet);
                 }
                 else if (!strcmp(messageBuffer, "ipv4 udp"))
                 {
-                    recive_file(new_port, AF_INET, SOCK_DGRAM, 0, fileSize, quiet);
+                    recievedSize = recive_file(new_port, AF_INET, SOCK_DGRAM, 0, fileSize, quiet);
                 }
                 else if (!strcmp(messageBuffer, "ipv6 tcp"))
                 {
-                    recive_file(new_port, AF_INET6, SOCK_STREAM, IPPROTO_TCP, fileSize, quiet);
+                    recievedSize = recive_file(new_port, AF_INET6, SOCK_STREAM, IPPROTO_TCP, fileSize, quiet);
                 }
                 else if (!strcmp(messageBuffer, "ipv6 udp"))
                 {
-                    recive_file(new_port, AF_INET6, SOCK_DGRAM, 0, fileSize, quiet);
+                    recievedSize = recive_file(new_port, AF_INET6, SOCK_DGRAM, 0, fileSize, quiet);
                 }
                 else if (!strcmp(messageBuffer, "uds dgram"))
                 {
-                    recive_file(new_port, AF_UNIX, SOCK_DGRAM, 0, fileSize, quiet);
+                    recievedSize = recive_file(new_port, AF_UNIX, SOCK_DGRAM, 0, fileSize, quiet);
                 }
                 else if (!strcmp(messageBuffer, "uds stream"))
                 {
-                    recive_file(new_port, AF_UNIX, SOCK_STREAM, 0, fileSize, quiet);
+                    recievedSize = recive_file(new_port, AF_UNIX, SOCK_STREAM, 0, fileSize, quiet);
                 }
                 else if (!strcmp(messageBuffer, "mmap"))
                 {
@@ -589,6 +590,9 @@ void run_server(char *port)
                 else if (!quiet)
                 {
                     printf("Checksums are not equal\n");
+                    if(recievedSize != fileSize){
+                        printf("File sizes are not equal packets were lost\n");
+                    }
                 }
                 gettimeofday(&end, NULL);
                 if (!quiet)
