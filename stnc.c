@@ -100,10 +100,6 @@ int main(int argc, char *argv[])
         {
             stream = 1;
         }
-        else if (strcmp(param, "default") == 0)
-        {
-            filename = NULL;
-        }
         else
         {
             filename = param;
@@ -174,19 +170,14 @@ void run_client(char *ip, char *port)
     {
         if (test)
         { // test mode
-            // generate file if not exist
-            if (filename == NULL)
-            {
-                filename = "test.txt";
-                generate_file(filename, 100 * 1024 * 1024, quiet);
-                deleteFile = 1; // flag to delete file after transfer
-            }
+          // generate file if not exist
+            generate_file("test.txt", 100 * 1024 * 1024, quiet);
             // create new port for file transfer port+1
             char new_port[10];
             sprintf(new_port, "%d", atoi(port) + 1);
 
             // send filesize
-            int filesize = get_file_size(filename);
+            int filesize = get_file_size("test.txt");
             char filesize_str[20];
             sprintf(filesize_str, "%d", filesize);
             int bytesSent = send(sockfd, filesize_str, strlen(filesize_str), 0);
@@ -198,7 +189,7 @@ void run_client(char *ip, char *port)
             sleep(0.1);
 
             // send checksum
-            uint32_t checksum = generate_checksum(filename, quiet);
+            uint32_t checksum = generate_checksum("test.txt", quiet);
             char checksum_str[20];
             sprintf(checksum_str, "%d", checksum);
             bytesSent = send(sockfd, checksum_str, strlen(checksum_str), 0);
@@ -281,42 +272,51 @@ void run_client(char *ip, char *port)
 
             if (tcp && ipv4)
             {
-                send_file(ip, new_port, filename, AF_INET, SOCK_STREAM, IPPROTO_TCP, quiet);
+                send_file(ip, new_port, "test.txt", AF_INET, SOCK_STREAM, IPPROTO_TCP, quiet);
             }
             else if (udp && ipv4)
             {
-                send_file(ip, new_port, filename, AF_INET, SOCK_DGRAM, 0, quiet);
+                send_file(ip, new_port, "test.txt", AF_INET, SOCK_DGRAM, 0, quiet);
             }
             else if (tcp && ipv6)
             {
-                send_file(ip, new_port, filename, AF_INET6, SOCK_STREAM, IPPROTO_TCP, quiet);
+                send_file(ip, new_port, "test.txt", AF_INET6, SOCK_STREAM, IPPROTO_TCP, quiet);
             }
             else if (udp && ipv6)
             {
-                send_file(ip, new_port, filename, AF_INET6, SOCK_DGRAM, 0, quiet);
+                send_file(ip, new_port, "test.txt", AF_INET6, SOCK_DGRAM, 0, quiet);
             }
             else if (uds && dgram)
             {
                 sleep(0.1);
-                send_file(0, new_port, filename, AF_UNIX, SOCK_DGRAM, 0, quiet);
+                send_file(0, new_port, "test.txt", AF_UNIX, SOCK_DGRAM, 0, quiet);
             }
             else if (uds && stream)
             {
                 sleep(0.1);
-                send_file(0, new_port, filename, AF_UNIX, SOCK_STREAM, 0, quiet);
+                send_file(0, new_port, "test.txt", AF_UNIX, SOCK_STREAM, 0, quiet);
             }
-            else if (isMmap || isPipe)
+            else if (isMmap)
             {
-                bytesSent = send(sockfd, filename, strlen(filename), 0); // send filename
+                
+                copy_file_to_shm_mmap("test.txt",filename,quiet); // copy file to shared memory
+                bytesSent = send(sockfd, filename, strlen(filename), 0); // send filepath to shared memory
                 if (bytesSent < 0)
                 {
                     printf("ERROR send() failed\n");
                     exit(1);
                 }
-                sleep(2); // make sure server is finished before deleting file
+            }else if(isPipe){
+                bytesSent = send(sockfd, filename, strlen(filename), 0); // send fifo name to named pipe
+                if (bytesSent < 0)
+                {
+                    printf("ERROR send() failed\n");
+                    exit(1);
+                }
+                send_file_fifo("test.txt",filename,quiet); // copy file to named pipe
+                
             }
-            if (deleteFile)
-                delete_file(filename, quiet);
+            delete_file("test.txt", quiet);
             exit(0);
         }
         // Poll stdin and socket
@@ -468,7 +468,7 @@ void run_server(char *port)
                 }
                 messageBuffer[bytesRecv] = '\0';
                 if (!quiet)
-                    printf("Client: %s \n", messageBuffer);
+                    printf("Client: %s", messageBuffer);
                 if (test)
                 {
                     int fileSize = 0;
@@ -476,7 +476,7 @@ void run_server(char *port)
                     uint32_t checksum = 0;
                     struct timeval start, end;
                     if (!quiet)
-                        printf("---------PERFORMANCE MODE---------\n");
+                        printf("\n---------PERFORMANCE MODE---------\n");
 
                     // recieve file size
                     fileSize = atoi(messageBuffer);
@@ -557,7 +557,11 @@ void run_server(char *port)
                             printf("ERROR recv() failed\n");
                             exit(1);
                         }
-                        copy_file_mmap(messageBuffer, "recived.txt");
+                        if (!quiet)
+                            printf("Shared file name: %s\n", messageBuffer);
+                        sleep(0.1); // wait for file to be created
+                        copy_file_from_shm_mmap("recived.txt",messageBuffer,fileSize,quiet); // copy file from shared memory
+                        recievedSize = file_size("recived.txt");
                     }
                     else if (!strcmp(messageBuffer, "pipe"))
                     {
@@ -567,7 +571,11 @@ void run_server(char *port)
                             printf("ERROR recv() failed\n");
                             exit(1);
                         }
-                        copy_file_pipe(messageBuffer, "recived.txt");
+                        if (!quiet)
+                            printf("Shared fifo name: %s\n", messageBuffer);
+                        sleep(0.1); // wait for file to be created
+                        recive_file_fifo("recived.txt",messageBuffer,quiet); // copy file from fifo
+                        recievedSize = file_size("recived.txt");
                     }
 
                     gettimeofday(&end, NULL);

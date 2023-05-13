@@ -31,5 +31,9 @@ void copy_file_mmap(char* filenameFrom, char* filenameTo);
 void copy_file_pipe(char* filenameFrom, char* filenameTo);
 int min(int a, int b);
 int file_size(char* filename);
+void copy_file_to_shm_mmap(char* filenameFrom, char* sharedFilename,int quiet);
+void copy_file_from_shm_mmap(char* filenameTo, char* sharedFilename,int fileSize,int quiet);
+void recive_file_fifo(char *filenameTo, char* fifoName,int quiet);
+void send_file_fifo(char *filenameFrom, char* fifoName,int quiet);
 
 #endif

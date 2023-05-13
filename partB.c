@@ -326,10 +326,9 @@ int recive_file(char *port, int domain, int type, int protocol,int filesize,int 
     }
     return size;
 }
-
-void copy_file_mmap(char *filenameFrom, char *filenameTo)
-{
-     // Open file
+void copy_file_to_shm_mmap(char* filenameFrom, char* sharedFilename,int quiet){
+    if(!quiet)
+        printf("Copying file '%s' to shared memory '%s'\n", filenameFrom, sharedFilename);
     int fdFrom = open(filenameFrom, O_RDONLY);
     if (fdFrom < 0)
     {
@@ -337,66 +336,135 @@ void copy_file_mmap(char *filenameFrom, char *filenameTo)
         exit(1);
     }
     int fileSize = file_size(filenameFrom);
-    printf("File size: %d\n", fileSize);
 
-    // Create file
+    int shm_fd = shm_open(sharedFilename, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+    if (shm_fd < 0)
+    {
+        printf("ERROR opening shared memory\n");
+        exit(1);
+    }
+    if(ftruncate(shm_fd, fileSize) < 0){
+        printf("ERROR truncating shared memory\n");
+        exit(1);
+    }
+
+    char *shm_ptr = mmap(NULL, fileSize, PROT_WRITE, MAP_SHARED, shm_fd, 0);
+    if (shm_ptr == MAP_FAILED)
+    {
+        printf("ERROR mapping shared memory\n");
+        exit(1);
+    }
+    char *file_ptr = mmap(NULL, fileSize, PROT_READ, MAP_SHARED, fdFrom, 0);
+    if (file_ptr == MAP_FAILED)
+    {
+        printf("ERROR mapping file\n");
+        exit(1);
+    }
+
+    memcpy(shm_ptr, file_ptr, fileSize);
+
+
+    if(munmap(shm_ptr, fileSize) < 0 || munmap(file_ptr, fileSize) < 0){
+        printf("ERROR unmapping shared memory\n");
+        exit(1);
+    }
+    close(fdFrom);
+    close(shm_fd);
+}
+
+void copy_file_from_shm_mmap(char* filenameTo, char* sharedFilename,int fileSize,int quiet){
+    if(!quiet)
+        printf("Copying file from shared memory '%s' to '%s'\n", sharedFilename, filenameTo);
     int fdTo = open(filenameTo, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
     if (fdTo < 0)
     {
         printf("ERROR opening file to\n");
         exit(1);
     }
-
     if(ftruncate(fdTo, fileSize) < 0){
         printf("ERROR truncating file\n");
         exit(1);
     }
-
-    // Determine alignment requirements
-    long page_size = sysconf(_SC_PAGE_SIZE);
-    off_t offset = 0;
-    off_t map_length = (fileSize + page_size - 1) / page_size * page_size;
-
-    // Map files to memory
-    char *mapFrom = mmap(NULL, map_length, PROT_READ, MAP_SHARED, fdFrom, offset);
-    if (mapFrom == MAP_FAILED)
+    int shm_fd = shm_open(sharedFilename, O_RDWR, S_IRUSR | S_IWUSR);
+    if (shm_fd < 0)
     {
-        printf("ERROR mmap from\n");
-        exit(1);
-    }
-    char *mapTo = mmap(NULL, map_length, PROT_READ | PROT_WRITE, MAP_SHARED, fdTo, offset);
-    if (mapTo == MAP_FAILED)
-    {
-        printf("ERROR mmap to\n");
+        printf("ERROR opening shared memory\n");
         exit(1);
     }
 
-    // Copy file
-    memcpy(mapTo, mapFrom, fileSize);
-
-    // Unmap files
-    if (munmap(mapFrom, fileSize) < 0 || munmap(mapTo, fileSize) < 0)
+    char *shm_ptr = mmap(NULL, fileSize, PROT_READ, MAP_SHARED, shm_fd, 0);
+    if (shm_ptr == MAP_FAILED)
     {
-        printf("ERROR munmap\n");
+        printf("ERROR mapping shared memory\n");
+        exit(1);
+    }
+    char *file_ptr = mmap(NULL, fileSize, PROT_WRITE, MAP_SHARED, fdTo, 0);
+    if (file_ptr == MAP_FAILED)
+    {
+        printf("ERROR mapping file\n");
+        exit(1);
+    }
+    memcpy(file_ptr, shm_ptr, fileSize);
+
+    if(munmap(shm_ptr, fileSize) < 0 || munmap(file_ptr, fileSize) < 0){
+        printf("ERROR unmapping shared memory\n");
         exit(1);
     }
 
-    // Close files
-    close(fdFrom);
+    // Unlink shared memory to free resources
+    if(shm_unlink(sharedFilename) < 0){
+        printf("ERROR unlinking shared memory\n");
+        exit(1);
+    }
+
     close(fdTo);
+    close(shm_fd);
+
 }
 
-void copy_file_pipe(char *filenameFrom, char *filenameTo)
-{
-    // Open file
-    int fdFrom = open(filenameFrom, O_RDONLY, S_IRUSR | S_IWUSR);
+void send_file_fifo(char *filenameFrom, char* fifoName,int quiet){
+    if(!quiet)
+        printf("Sending file '%s' to fifo '%s'\n", filenameFrom, fifoName);
+    char buffer[BUFFER_SIZE] = {0};
+    int fdFrom = open(filenameFrom, O_RDONLY);
     if (fdFrom < 0)
     {
         printf("ERROR opening file from\n");
         exit(1);
     }
 
-    // Create file
+    // Create fifo
+    if(mkfifo(fifoName, 0666) < 0 && errno != EEXIST){
+        printf("ERROR creating fifo\n");
+        exit(1);
+    }
+
+    int fdFifo = open(fifoName, O_WRONLY);
+    if (fdFifo < 0)
+    {
+        printf("ERROR opening fifo\n");
+        exit(1);
+    }
+
+    ssize_t read_res, write_res;
+    while ((read_res = read(fdFrom, buffer, BUFFER_SIZE)) > 0)
+    {
+        write_res = write(fdFifo, buffer, read_res);
+        if (write_res != read_res)
+        {
+            printf("ERROR writing to fifo\n");
+            exit(1);
+        }
+    }
+
+    close(fdFrom);
+    close(fdFifo);
+}
+
+void recive_file_fifo(char *filenameTo, char* fifoName,int quiet){
+    if(!quiet)
+        printf("Reciving file from fifo '%s' to '%s'\n", fifoName, filenameTo);
+    char buffer[BUFFER_SIZE] = {0};
     int fdTo = open(filenameTo, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
     if (fdTo < 0)
     {
@@ -404,54 +472,32 @@ void copy_file_pipe(char *filenameFrom, char *filenameTo)
         exit(1);
     }
 
-    int pipefd[2]; // Create pipe
-    if (pipe(pipefd) < 0)
+    int fdFifo = open(fifoName, O_RDONLY);
+    if (fdFifo < 0)
     {
-        printf("ERROR pipe\n");
+        printf("ERROR opening fifo\n");
         exit(1);
     }
-    pid_t pid = fork();
 
-    if (pid < 0)
+    ssize_t read_res, write_res;
+    while ((read_res = read(fdFifo, buffer, BUFFER_SIZE)) > 0)
     {
-        printf("ERROR fork\n");
+        write_res = write(fdTo, buffer, read_res);
+        if (write_res != read_res)
+        {
+            printf("ERROR writing to file\n");
+            exit(1);
+        }
+    }
+
+    // Unlink fifo to free resources
+    if(unlink(fifoName) < 0){
+        printf("ERROR unlinking fifo\n");
         exit(1);
     }
-    else if (pid == 0)
-    {                     // Child
-        close(pipefd[0]); // Close read end
-        char buffer[BUFFER_SIZE];
-        int bytes_read = 0;
-        while ((bytes_read = read(fdFrom, buffer, BUFFER_SIZE)) > 0)
-        { // Read from file to buffer
-            if (write(pipefd[1], buffer, bytes_read) < 0)
-            { // Write to pipe
-                printf("ERROR write\n");
-                exit(1);
-            }
-        }
-        close(pipefd[1]);
-        exit(0);
-    }
-    else
-    {
-        close(pipefd[1]);
-        char buffer[BUFFER_SIZE];
-        int bytes_read = 0;
-        while ((bytes_read = read(pipefd[0], buffer, BUFFER_SIZE)) > 0)
-        { // Read from pipe
-            if (write(fdTo, buffer, bytes_read) < 0)
-            { // Write to file
-                printf("ERROR write\n");
-                exit(1);
-            }
-        }
-        close(pipefd[0]);
-        pid_t wait(int *status);
-    }
 
-    close(fdFrom);
     close(fdTo);
+    close(fdFifo);
 }
 
 int get_file_size(char *filename){
