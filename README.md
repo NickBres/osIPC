@@ -90,6 +90,7 @@ In this example you can see that ipv4 udp packets were lost thats why time is to
 
 * There is some issues with programs syncronization. Sometimes on side may run faster than expected and it will cause some bugs that will ruin the test. I tried to fix it with sleep function in some places, but it looks like sometimes its not enough. Because lack of time i cannot make it better.
 * When program fails it may not free the port or other used resource so on the next run it may not work because of this. Usually "make clean" and built it agai fix this.
+* UDP is very unstable protocol when using it clear. Sometimes packets will be lost. Also packets was arriving in wrong order, to fix it i added sleep after sending each packet so it will affect on the transfer time.
 
 
 
