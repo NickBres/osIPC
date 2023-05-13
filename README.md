@@ -43,7 +43,9 @@ For the file transfer in a different ways:
 
 
 Only file transfer will be in the given way. All other communications between server and client will be in chat using tcp.
+
 All methods will generate a file 100mb to send it.
+
 All generated and recieved files will be deleted after the test.
 
 > When sending via udp protocol, may happen that packets will lost. If it happens recieve function will exit efter 2 seconds timeout. It will still prints the time it took but with +2 seconds of timeout.
@@ -70,6 +72,7 @@ To test the time it takes to client send a file to a server, the program uses ch
 First six tests are wery simmilar in their realization so they all use same function but with different parameters. When sending via udp/dgram packets may loose because there is no realaible algorithm that may fix it. If some packets will loose function will wait two seconds and will finish after timeout, this time will be included in the test result time.
 
 MMAP: To send a file via MMAP client need to decide about shared memory name and send it to the server. After that client will copy the file to the shared memory and server will copy the file from shared memory. After sending server will close the shared memory.
+
 PIPE: To send a file via PIPES program uses FIFO pipes, so client need to decide about fifo pipes name and send it to the server. After that client will create given fifo pipe and open it for writing and wait for the server to open it for reading. After sending server will close the pipe.
 
 ### Not quiet run demonstration
