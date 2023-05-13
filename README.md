@@ -89,7 +89,7 @@ In this example, you can see that the IPv4 UDP packets were lost, resulting in a
 
 ### Problems
 
-* There are some issues with program synchronization. Sometimes, one side may run faster than expected, causing bugs that can disrupt the test. Attempts have been made to address this by adding sleep functions in some places, but it may not always be sufficient. Due to time constraints, further improvements were not implemented.
+* There are some issues with program synchronization. Sometimes, one side may run faster than expected, causing bugs that can disrupt the test. Attempts have been made to address this by adding sleep functions in some places, but it may not always be sufficient. Because of sleep functions not all time results are truly correct. Due to time constraints, further improvements were not implemented.
 * When the program fails, it may not free the port or other resources used, which can cause issues in subsequent runs. Usually, running "make clean" and rebuilding it resolves this problem.
 * UDP is an unstable protocol, particularly when used without additional measures. Sometimes, packets may be lost, and packets may arrive in the wrong order. To address this, a sleep delay was added after sending each packet, which affects the overall transfer time.
 
