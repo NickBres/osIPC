@@ -1,9 +1,9 @@
 # osIPC
 
-This repository contains the code for the stnc project, which is a simple network transfer tool developed in C. The tool allows users to transfer files between a client and a server using different protocols and techniques. Also it shows how to control couple file descriptors without threads using poll function.
+This repository contains the code for the stnc project, which is a simple network transfer tool developed in C. The tool allows users to transfer files between a client and a server using different protocols and techniques. It also shows how to control multiple file descriptors without threads using the poll function.
 
 
-All tests has been made on MacBook Pro with arm proccesor using UTM virtual machine to run gcc (Ubuntu 11.3.0-1ubuntu1~22.04) 11.3.0.
+All tests have been performed on a MacBook Pro with an ARM processor using the UTM virtual machine to run GCC (Ubuntu 11.3.0-1ubuntu1~22.04) 11.3.0.
 
 ## How to use
 
@@ -13,7 +13,7 @@ All tests has been made on MacBook Pro with arm proccesor using UTM virtual mach
   make
    ```
 
-> Not recommended to change order of input.
+> It is not recommended to change the order of input.
 
 First run the server.
 
@@ -21,14 +21,15 @@ First run the server.
    ./stnc -s <port>
    ```
 
-After the server is running you can run the client. Ip and port of the server.
+Once the server is running, you can run the client. Specify the IP address and port of the server.
 
 For the simple chat tool between server and client:
 ```sh
    ./stnc -c <ip> <port>
    ```
 
-For the file transfer in a different ways:
+For file transfer using different methods:
+
 
 | Type  | Param  |
 |-------|--------|
@@ -42,13 +43,13 @@ For the file transfer in a different ways:
 | pipe   | filename |
 
 
-Only file transfer will be in the given way. All other communications between server and client will be in chat using tcp.
+Only the file transfer will use the specified method. All other communications between the server and client will occur via chat using TCP.
 
-All methods will generate a file 100mb to send it.
+All methods will generate a 100MB file for transmission.
 
-All generated and recieved files will be deleted after the test.
+All generated and received files will be deleted after the test.
 
-> When sending via udp protocol, may happen that packets will lost. If it happens recieve function will exit efter 2 seconds timeout. It will still prints the time it took but with +2 seconds of timeout.
+> When sending via UDP protocol, it may happen that packets will be lost. If this occurs, the receive function will exit after a 2-second timeout. It will still print the time it took but with an additional 2 seconds of timeout.
 
 ```sh
    ./stnc -s <port> -p
@@ -56,25 +57,25 @@ All generated and recieved files will be deleted after the test.
    ```
 Time results will be printed on Server side.
 
-Add -q flag for quite run. On the client side nothing will be printed. On the server side only time will be printed. 
+Add the -q flag for a quiet run. On the client side, nothing will be printed. On the server side, only the time will be printed.
 
 ## Explanation
 
 ### Chat
 
-Simple chat program between client and server that works without threads. To achive that it works with poll() function that listens to two file descriptors (stdin,socket) in the same time and when something happens in one of them it acts acoordingly. Server may listen only to one client in same time. If client will disconnect server will listen again.
+This is a simple chat program between the client and server that works without threads. To achieve this, it uses the poll() function to listen to two file descriptors (stdin and socket) simultaneously. When an event occurs on one of them, it acts accordingly. The server can only listen to one client at a time. If a client disconnects, the server will listen for a new connection.
 ![image](https://github.com/NickBres/osIPC/assets/70432147/88f7cd28-f955-495e-8474-8d1815256d88)
 
 
 ### Performace test
 
-To test the time it takes to client send a file to a server, the program uses chat to communicate and send commands to the server. Client will send type of test, file size, checksum and time when it started to send a file. After that client and server will open a new port (original port +1) to transfer the file. After the transfer server will check the file by generating and comparing checksums and print time that transfer took even if checksums dont match or other issue happen.
+To test the time it takes for the client to send a file to the server, the program uses the chat function to communicate and send commands to the server. The client sends the test type, file size, checksum, and the time it started sending the file. After that, the client and server open a new port (original port + 1) for file transfer. After the transfer is complete, the server checks the file by generating and comparing checksums, and it prints the time it took for the transfer, even if the checksums don't match or other issues occur.
 
-First six tests are wery simmilar in their realization so they all use same function but with different parameters. When sending via udp/dgram packets may loose because there is no realaible algorithm that may fix it. If some packets will loose function will wait two seconds and will finish after timeout, this time will be included in the test result time.
+The first six tests are very similar in their implementation, so they all use the same function with different parameters. When sending via UDP/dgram, packets may be lost because there is no reliable algorithm here to fix packet loss. If some packets are lost, the function will wait for two seconds and then finish after the timeout. This additional time will be included in the test result time.
 
-MMAP: To send a file via MMAP client need to decide about shared memory name and send it to the server. After that client will copy the file to the shared memory and server will copy the file from shared memory. After sending server will close the shared memory.
+MMAP: To send a file via MMAP, the client needs to specify a shared memory name and send it to the server. The client then copies the file to the shared memory, and the server copies the file from the shared memory. After sending, the server closes the shared memory.
 
-PIPE: To send a file via PIPES program uses FIFO pipes, so client need to decide about fifo pipes name and send it to the server. After that client will create given fifo pipe and open it for writing and wait for the server to open it for reading. After sending server will close the pipe.
+PIPE: To send a file via pipes, the program uses FIFO pipes. The client needs to specify a FIFO pipe name and send it to the server. The client creates the given FIFO pipe, opens it for writing, and waits for the server to open it for reading. After sending, the server closes the pipe.
 
 ### Not quiet run demonstration
 ![image](https://github.com/NickBres/osIPC/assets/70432147/415fb07c-8f6e-430a-8626-4fd13aa06e1a)
@@ -83,14 +84,14 @@ PIPE: To send a file via PIPES program uses FIFO pipes, so client need to decide
 
 ### Quiet run with all possible ways
 
-In this example you can see that ipv4 udp packets were lost thats why time is too big. All other ways worked good.
+In this example, you can see that the IPv4 UDP packets were lost, resulting in a longer time. However, all other methods worked well.
 ![image](https://github.com/NickBres/osIPC/assets/70432147/ebb48f23-6355-4ca7-a5ad-268aefcd0f96)
 
 ### Problems
 
-* There is some issues with programs syncronization. Sometimes one side may run faster than expected and it will cause some bugs that will ruin the test. I tried to fix it with sleep function in some places, but sometimes its not enough. Because lack of time I cannot make it better.
-* When program fails it may not free the port or other used resource so on the next run it may not work because of this. Usually "make clean" and built it agai fix this.
-* UDP is very unstable protocol when using it clear. Sometimes packets will be lost. Also packets was arriving in wrong order, to fix it i added sleep after sending each packet so it will affect on the transfer time.
+* There are some issues with program synchronization. Sometimes, one side may run faster than expected, causing bugs that can disrupt the test. Attempts have been made to address this by adding sleep functions in some places, but it may not always be sufficient. Due to time constraints, further improvements were not implemented.
+* When the program fails, it may not free the port or other resources used, which can cause issues in subsequent runs. Usually, running "make clean" and rebuilding it resolves this problem.
+* UDP is an unstable protocol, particularly when used without additional measures. Sometimes, packets may be lost, and packets may arrive in the wrong order. To address this, a sleep delay was added after sending each packet, which affects the overall transfer time.
 
 
 
