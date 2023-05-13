@@ -51,6 +51,7 @@ All generated and recieved files will be deleted after the test.
 > When sending via udp protocol, may happen that packets will lost. If it happens recieve function will exit efter 2 seconds timeout. It will still prints the time it took but with +2 seconds of timeout.
 
 ```sh
+   ./stnc -s <port> -p
    ./stnc -c <ip> <port> -p <type> <param>
    ```
 Time results will be printed on Server side.
